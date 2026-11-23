@@ -1,8 +1,1 @@
-{
-  "updatedAt": null,
-  "status": "unavailable",
-  "indices": {},
-  "errors": [
-    "First update has not run."
-  ]
-}
+{"updatedAt":"2026-11-23T06:37:59.278024+00:00","indices":{},"errors":["sp500: Stooq response invalid or historical data incomplete","nasdaq: Stooq response invalid or historical data incomplete"],"status":"unavailable"}

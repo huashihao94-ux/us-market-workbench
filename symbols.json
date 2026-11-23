@@ -1,0 +1,361 @@
+{
+  "updatedAt": "2026-11-23",
+  "source": "演示初始名单，后续由SEC官方公司代码名录更新",
+  "rows": [
+    [
+      "Apple Inc.",
+      "AAPL",
+      "NASDAQ"
+    ],
+    [
+      "Microsoft Corporation",
+      "MSFT",
+      "NASDAQ"
+    ],
+    [
+      "NVIDIA Corporation",
+      "NVDA",
+      "NASDAQ"
+    ],
+    [
+      "Alphabet Inc.",
+      "GOOGL",
+      "NASDAQ"
+    ],
+    [
+      "Amazon.com Inc.",
+      "AMZN",
+      "NASDAQ"
+    ],
+    [
+      "Meta Platforms, Inc.",
+      "META",
+      "NASDAQ"
+    ],
+    [
+      "Tesla, Inc.",
+      "TSLA",
+      "NASDAQ"
+    ],
+    [
+      "Berkshire Hathaway Inc.",
+      "BRK-B",
+      "NYSE"
+    ],
+    [
+      "Coca-Cola Company",
+      "KO",
+      "NYSE"
+    ],
+    [
+      "PepsiCo, Inc.",
+      "PEP",
+      "NASDAQ"
+    ],
+    [
+      "Procter & Gamble Company",
+      "PG",
+      "NYSE"
+    ],
+    [
+      "Johnson & Johnson",
+      "JNJ",
+      "NYSE"
+    ],
+    [
+      "Visa Inc.",
+      "V",
+      "NYSE"
+    ],
+    [
+      "Mastercard Incorporated",
+      "MA",
+      "NYSE"
+    ],
+    [
+      "Costco Wholesale Corporation",
+      "COST",
+      "NASDAQ"
+    ],
+    [
+      "Walmart Inc.",
+      "WMT",
+      "NYSE"
+    ],
+    [
+      "McDonald's Corporation",
+      "MCD",
+      "NYSE"
+    ],
+    [
+      "UnitedHealth Group Incorporated",
+      "UNH",
+      "NYSE"
+    ],
+    [
+      "JPMorgan Chase & Co.",
+      "JPM",
+      "NYSE"
+    ],
+    [
+      "Bank of America Corporation",
+      "BAC",
+      "NYSE"
+    ],
+    [
+      "Citigroup Inc.",
+      "C",
+      "NYSE"
+    ],
+    [
+      "Wells Fargo & Company",
+      "WFC",
+      "NYSE"
+    ],
+    [
+      "Goldman Sachs Group, Inc.",
+      "GS",
+      "NYSE"
+    ],
+    [
+      "Morgan Stanley",
+      "MS",
+      "NYSE"
+    ],
+    [
+      "Advanced Micro Devices, Inc.",
+      "AMD",
+      "NASDAQ"
+    ],
+    [
+      "Broadcom Inc.",
+      "AVGO",
+      "NASDAQ"
+    ],
+    [
+      "Taiwan Semiconductor Manufacturing Company",
+      "TSM",
+      "NYSE"
+    ],
+    [
+      "ASML Holding N.V.",
+      "ASML",
+      "NASDAQ"
+    ],
+    [
+      "Adobe Inc.",
+      "ADBE",
+      "NASDAQ"
+    ],
+    [
+      "Salesforce, Inc.",
+      "CRM",
+      "NYSE"
+    ],
+    [
+      "Palantir Technologies Inc.",
+      "PLTR",
+      "NASDAQ"
+    ],
+    [
+      "Snowflake Inc.",
+      "SNOW",
+      "NYSE"
+    ],
+    [
+      "CrowdStrike Holdings, Inc.",
+      "CRWD",
+      "NASDAQ"
+    ],
+    [
+      "Uber Technologies, Inc.",
+      "UBER",
+      "NYSE"
+    ],
+    [
+      "Airbnb, Inc.",
+      "ABNB",
+      "NASDAQ"
+    ],
+    [
+      "Netflix, Inc.",
+      "NFLX",
+      "NASDAQ"
+    ],
+    [
+      "Shopify Inc.",
+      "SHOP",
+      "NYSE"
+    ],
+    [
+      "Coinbase Global, Inc.",
+      "COIN",
+      "NASDAQ"
+    ],
+    [
+      "Robinhood Markets, Inc.",
+      "HOOD",
+      "NASDAQ"
+    ],
+    [
+      "PayPal Holdings, Inc.",
+      "PYPL",
+      "NASDAQ"
+    ],
+    [
+      "Block, Inc.",
+      "XYZ",
+      "NYSE"
+    ],
+    [
+      "Intel Corporation",
+      "INTC",
+      "NASDAQ"
+    ],
+    [
+      "Micron Technology, Inc.",
+      "MU",
+      "NASDAQ"
+    ],
+    [
+      "QUALCOMM Incorporated",
+      "QCOM",
+      "NASDAQ"
+    ],
+    [
+      "Texas Instruments Incorporated",
+      "TXN",
+      "NASDAQ"
+    ],
+    [
+      "NIKE, Inc.",
+      "NKE",
+      "NYSE"
+    ],
+    [
+      "Starbucks Corporation",
+      "SBUX",
+      "NASDAQ"
+    ],
+    [
+      "Walt Disney Company",
+      "DIS",
+      "NYSE"
+    ],
+    [
+      "Ford Motor Company",
+      "F",
+      "NYSE"
+    ],
+    [
+      "General Motors Company",
+      "GM",
+      "NYSE"
+    ],
+    [
+      "Boeing Company",
+      "BA",
+      "NYSE"
+    ],
+    [
+      "Lockheed Martin Corporation",
+      "LMT",
+      "NYSE"
+    ],
+    [
+      "Exxon Mobil Corporation",
+      "XOM",
+      "NYSE"
+    ],
+    [
+      "Chevron Corporation",
+      "CVX",
+      "NYSE"
+    ],
+    [
+      "Eli Lilly and Company",
+      "LLY",
+      "NYSE"
+    ],
+    [
+      "Novo Nordisk A/S",
+      "NVO",
+      "NYSE"
+    ],
+    [
+      "Oracle Corporation",
+      "ORCL",
+      "NYSE"
+    ],
+    [
+      "ServiceNow, Inc.",
+      "NOW",
+      "NYSE"
+    ],
+    [
+      "Datadog, Inc.",
+      "DDOG",
+      "NASDAQ"
+    ],
+    [
+      "Marvell Technology, Inc.",
+      "MRVL",
+      "NASDAQ"
+    ],
+    [
+      "The Trade Desk, Inc.",
+      "TTD",
+      "NASDAQ"
+    ],
+    [
+      "Okta, Inc.",
+      "OKTA",
+      "NASDAQ"
+    ],
+    [
+      "SoFi Technologies, Inc.",
+      "SOFI",
+      "NASDAQ"
+    ],
+    [
+      "Roku, Inc.",
+      "ROKU",
+      "NASDAQ"
+    ],
+    [
+      "Intuit Inc.",
+      "INTU",
+      "NASDAQ"
+    ],
+    [
+      "Booking Holdings Inc.",
+      "BKNG",
+      "NASDAQ"
+    ],
+    [
+      "PDD Holdings Inc.",
+      "PDD",
+      "NASDAQ"
+    ],
+    [
+      "Alibaba Group Holding Limited",
+      "BABA",
+      "NYSE"
+    ],
+    [
+      "Baidu, Inc.",
+      "BIDU",
+      "NASDAQ"
+    ],
+    [
+      "JD.com, Inc.",
+      "JD",
+      "NASDAQ"
+    ],
+    [
+      "Pony AI Inc.",
+      "PONY",
+      "NASDAQ"
+    ]
+  ]
+}

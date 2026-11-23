@@ -33,8 +33,52 @@ def fetch():
             print(f"SEC directory attempt {attempt + 1} failed: {exc}", flush=True)
             time.sleep(2 * (attempt + 1))
 
+def github_fallback():
+    """Fallback for name search if SEC main directory is temporarily blocked.
+    This mirror uses Nasdaq's screeners; CIK may be unavailable.
+    """
+    base = "https://raw.githubusercontent.com/e1001925/Improved-US-Stock-Symbols/main"
+    prior = {}
+    try:
+        cached = json.loads(OUT.read_text(encoding="utf-8"))
+        prior = {r[1].upper():r[3] for r in cached.get("rows",[]) if len(r)>3}
+    except (OSError,ValueError):
+        pass
+    merged = {}
+    for exchange in ("nasdaq", "nyse", "amex"):
+        url = f"{base}/{exchange}/{exchange}_full_tickers.json"
+        res = session.get(url, timeout=65)
+        res.raise_for_status()
+        data = res.json()
+        if isinstance(data,dict):
+            data = data.get("data",{}).get("rows",[]) or data.get("rows",[])
+        if not isinstance(data,list):
+            raise ValueError(f"Unexpected {exchange} format")
+        for item in data:
+            if not isinstance(item,dict):
+                continue
+            sym = str(item.get("symbol") or item.get("ticker") or "").strip().upper()
+            name = str(item.get("name") or item.get("companyName") or "").strip()
+            if not sym or not name:
+                continue
+            merged[sym] = [name, sym, exchange.upper(), prior.get(sym)]
+    if len(merged)<2500:
+        raise ValueError(f"Fallback directory too small: {len(merged)}")
+    return sorted(merged.values(), key=lambda x:x[0].casefold())
+
 def main():
-    body = fetch()
+    try:
+        body = fetch()
+    except Exception as exc:
+        print("Official SEC directory unavailable:",str(exc)[:150],flush=True)
+        rows = github_fallback()
+        out = {"updatedAt": datetime.now(timezone.utc).date().isoformat(),
+               "source": "GitHub e1001925/Improved-US-Stock-Symbols (Nasdaq mirror, CIK may be absent)",
+               "rows": rows}
+        OUT.write_text(json.dumps(out,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
+        print(f"Saved fallback {len(rows)} ticker names",flush=True)
+        return
+
     fields = body["fields"]
     name_i, ticker_i = fields.index("name"), fields.index("ticker")
     exchange_i = fields.index("exchange") if "exchange" in fields else None

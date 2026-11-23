@@ -115,8 +115,17 @@ if(detailRoot)detailRoot.addEventListener("input",event=>{
 async function refresh(){
   setStatus("正在读取公开数据缓存…");
   try{
-    const response=await fetch("fundamentals.json?refresh="+Date.now(),{cache:"no-store"});
-    if(!response.ok)throw new Error("HTTP "+response.status);
+    // Read the live public GitHub main-branch blob first, because a GITHUB_TOKEN
+    // data commit may not trigger a fresh Pages deployment automatically.
+    const latest="https://raw.githubusercontent.com/huashihao94-ux/us-market-workbench/main/fundamentals.json";
+    let response;
+    try{
+      response=await fetch(latest+"?refresh="+Date.now(),{cache:"no-store"});
+      if(!response.ok)throw new Error("GitHub raw HTTP "+response.status);
+    }catch(error){
+      response=await fetch("fundamentals.json?refresh="+Date.now(),{cache:"no-store"});
+      if(!response.ok)throw new Error("GitHub raw unavailable; site cache HTTP "+response.status);
+    }
     const json=await response.json();
     if(!json||!json.stocks||typeof json.stocks!=="object"||Array.isArray(json.stocks))throw new Error("缓存结构不正确");
     cached=json;

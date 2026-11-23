@@ -24,7 +24,7 @@ import requests
 ROOT = Path(__file__).resolve().parents[1]
 SYMBOLS = ROOT / "symbols.json"
 OUT = ROOT / "fundamentals.json"
-UA_SEC = os.environ.get("SEC_USER_AGENT", "StockPoolResearch huashihao94-ux@users.noreply.github.com")
+UA_SEC = os.environ.get("SEC_USER_AGENT") or "StockPoolResearch huashihao94-ux@users.noreply.github.com"
 UA_PRICE = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36")
 PRICE_HEADERS = {"User-Agent": UA_PRICE, "Accept": "application/json,text/csv,*/*"}

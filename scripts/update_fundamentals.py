@@ -345,14 +345,17 @@ def main():
             print(ticker,"price",rec.get("price"),"report",rec.get("financialMeta",{}).get("updatedAt","—"),flush=True)
     out={"updatedAt":datetime.now(timezone.utc).isoformat(),
          "mode":args.mode,"tracked":len(tickers),"stocks":results,
+         "status":"ok" if not errors else "partial" if any(v.get("price") or v.get("financialMeta") for v in results.values()) else "unavailable",
          "errors":errors[:50],
          "notes":"价格是最新成功抓取的日线收盘价，可能延迟；财报数据为SEC历史财报，不是实时/一致TTM；字段无值时不要假设为零。"}
     OUT.write_text(json.dumps(out,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
     countprice=sum(1 for t in tickers if results.get(t,{}).get("price"))
     countfin=sum(1 for t in tickers if results.get(t,{}).get("financialMeta"))
     print("Saved:",countprice,"with prices;",countfin,"with SEC facts;",len(errors),"field errors",flush=True)
+    for message in errors[:20]:
+        print("Provider error:", message, file=sys.stderr, flush=True)
     if countprice==0 and countfin==0:
-        raise SystemExit("No financial or price records retrieved; old cache, if any, was kept.")
+        print("WARNING: All providers failed; publishing directory plus explicit unavailable cache (not pretending prices exist)",file=sys.stderr,flush=True)
 
 if __name__=="__main__":
     main()

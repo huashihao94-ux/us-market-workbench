@@ -16,7 +16,7 @@ import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "data.json"
-UA = {"User-Agent": "Mozilla/5.0 (compatible; us-market-workbench/1.0)", "Accept": "application/json,text/csv,*/*"}
+UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36", "Accept": "text/csv,application/json,*/*"}
 SPECS = {
     "sp500": {"name": "标普500", "ticker": "^GSPC", "stooq": "^spx", "bottoms": ["2010-07-02", "2015-08-25", "2018-12-24", "2020-03-23", "2025-04-08", "2026-03-30"]},
     "nasdaq": {"name": "纳斯达克综合指数", "ticker": "^IXIC", "stooq": "^ndq", "bottoms": ["2010-07-02", "2012-11-15", "2015-08-25", "2018-12-24", "2020-03-23", "2025-04-08", "2026-03-30"]}
@@ -102,16 +102,31 @@ def fred(spec):
 
 
 def fetch(spec):
+    # FRED first: keyless CSV often works in GitHub Actions whereas Yahoo can rate-limit
+    # shared runners and Stooq's CSV download now often requires a key.
+    providers = [
+        ("FRED", lambda: fred(spec)),
+        ("Yahoo Finance", lambda: yahoo(spec["ticker"])),
+        ("Stooq", lambda: stooq(spec["stooq"])),
+    ]
     errors = []
-    for supplier in (lambda: yahoo(spec["ticker"]), lambda: fred(spec), lambda: stooq(spec["stooq"])):
+    for name, supplier in providers:
         try:
+            print(f"Trying {name} for {spec['ticker']}", flush=True)
             rows, source = supplier()
-            if len(rows) < 250:
-                raise ValueError("Less than 250 valid daily observations")
+            if len(rows) < 300:
+                raise ValueError(f"Only {len(rows)} daily rows")
+            latest = datetime.fromisoformat(rows[-1][0]).date()
+            age_days = (datetime.now(timezone.utc).date() - latest).days
+            if age_days > 14:
+                raise ValueError(f"Latest observation {latest} is {age_days} days old")
+            print(f"{name}: {len(rows)} days; latest {rows[-1][0]}", flush=True)
             return rows, source
         except Exception as error:
-            errors.append(str(error)[:250])
-    raise RuntimeError("All data providers failed: " + " | ".join(errors))
+            message = f"{name}: {type(error).__name__}: {str(error)[:250]}"
+            print(message, file=sys.stderr, flush=True)
+            errors.append(message)
+    raise RuntimeError("All providers failed: " + " | ".join(errors))
 
 def make_index(spec, rows, source):
     dates = [d for d, c in rows]
@@ -198,7 +213,9 @@ def main():
     else:
         result["status"] = "partial" if result["errors"] else "ok"
     OUT.write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print("Saved", OUT, result["status"])
+    print("Saved", OUT, result["status"], flush=True)
+    if result["status"] == "unavailable":
+        raise SystemExit("No usable index data. Check source errors above; marked update as FAILED.")
 
 if __name__ == "__main__":
     main()

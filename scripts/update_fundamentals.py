@@ -59,16 +59,16 @@ FACT_FIELDS = {
   "shares": (["EntityCommonStockSharesOutstanding", "CommonStockSharesOutstanding"], SHARES, False)
 }
 TRACKED = ROOT / "tracked_symbols.json"
-def get_json(url, headers, timeout=32):
+def get_json(url, headers, timeout=32, attempts=2):
     error = None
-    for attempt in range(3):
+    for attempt in range(attempts):
         try:
             response = requests.get(url, headers=headers, timeout=timeout)
             response.raise_for_status()
             return response.json()
         except Exception as exc:
             error = exc
-            if attempt != 2:
+            if attempt != attempts - 1:
                 time.sleep((attempt + 1) * 1.5)
     raise RuntimeError(f"{url.split('?')[0]}: {str(error)[:130]}")
 
@@ -115,9 +115,8 @@ def choose(facts, tags, unit, annual=True):
                 all_facts.append((r["end"], r.get("filed", ""), -rank, safe_num(r["val"]), tag))
     if not all_facts:
         return None
-    _, _, _, value, tag = max(all_facts, key=lambda x: (x[0], x[1], x[2]))
     best = max(all_facts, key=lambda x: (x[0], x[1], x[2]))
-    return {"value": value, "end": best[0], "filed": best[1], "tag": tag}
+    return {"value": best[3], "end": best[0], "filed": best[1], "tag": best[4]}
 
 def annual_history(facts, tags, unit):
     candidates = []
@@ -186,7 +185,6 @@ def extract_financials(cik):
     if len(rev_hist) >= 2 and rev_hist[1][1] > 0:
         out["historicalRevenueGrowth"] = round((rev_hist[0][1]/rev_hist[1][1]-1)*100, 2)
     income = found.get("netIncome")
-    eqhist = annual_history(facts, EQUITY, USD) # Instant equity snapshots need separate handling.
     yearly_equity = []
     for taxonomy in ("us-gaap",):
         for tag in EQUITY:
@@ -215,7 +213,7 @@ def yahoo_prices(ticker):
     errors=[]
     for host in ("query1.finance.yahoo.com","query2.finance.yahoo.com"):
         try:
-            j=get_json(f"https://{host}/v8/finance/chart/{t}?range=1y&interval=1d",PRICE_HEADERS,timeout=25)
+            j=get_json(f"https://{host}/v8/finance/chart/{t}?range=1y&interval=1d",PRICE_HEADERS,timeout=12,attempts=1)
             chart=j["chart"]
             result=(chart.get("result") or [None])[0]
             if not result:
@@ -247,7 +245,7 @@ def stooq_prices(ticker):
     # Stooq only as a fall-back; pricing and date conventions may differ from Yahoo.
     t=ticker.lower().replace("-",".")+".us"
     r=requests.get("https://stooq.com/q/d/l/",params={"s":t,"i":"d","d1":"20250101"},
-                   headers=PRICE_HEADERS,timeout=40)
+                   headers=PRICE_HEADERS,timeout=15)
     r.raise_for_status()
     rows=list(csv.DictReader(io.StringIO(r.text.lstrip("\ufeff"))))
     usable=[]
@@ -325,6 +323,7 @@ def main():
                     rec.update(financials)
                     rec["financialMeta"]=financials["meta"]
                     rec["_secFields"]=fields
+                    rec.pop("financialError",None)
                 except Exception as exc:
                     rec["financialError"]=str(exc)[:170]
                     errors.append(f"{ticker} SEC: {str(exc)[:90]}")

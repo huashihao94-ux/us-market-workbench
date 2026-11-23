@@ -15,7 +15,7 @@ from requests import Session
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "symbols.json"
 SEC = "https://www.sec.gov/files/company_tickers_exchange.json"
-UA = os.environ.get("SEC_USER_AGENT", "StockPoolResearch huashihao94-ux@users.noreply.github.com")
+UA = os.environ.get("SEC_USER_AGENT") or "StockPoolResearch huashihao94-ux@users.noreply.github.com"
 session = Session()
 session.headers.update({"User-Agent": UA, "Accept": "application/json", "Accept-Encoding": "gzip, deflate"})
 

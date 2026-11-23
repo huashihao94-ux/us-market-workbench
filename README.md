@@ -69,3 +69,25 @@ GitHub Actions 的计划任务可能延迟、限流、无法访问数据源。Gi
 初始 `symbols.json` 含少量常用美股；`.github/workflows/update_symbols.yml` 会按周尝试从美国SEC官方 [company_tickers_exchange.json](https://www.sec.gov/files/company_tickers_exchange.json) 更新完整公司名称和代码索引。请检查 GitHub Actions 的 **Update stock name directory** 是否成功，因源站限流、GitHub权限或运行环境问题不能保证持续更新。
 
 **重要限制**：本工具不提供实时交易信号，也不保证输入数据准确；“达标”仅代表当前填写的数据满足这个类别的用户配置的模型条件，不代表值得买入或股价马上到达目标区。金额输入的单位是亿美元，价格输入单位为美元/股。
+
+## 自动名称搜索和估值数据（2026-11-23 升级）
+
+**分类股票池第二个分页已加载 `auto_data.js`。** 股票名称与代码使用 `symbols.json`；优先通过定时任务更新SEC官方的公司名称、交易所、股票代码及CIK；如果首次只有少量内置股票，网页会尝试读取 [交易所代码镜像](https://github.com/e1001925/Improved-US-Stock-Symbols) 作为名称搜索备用，不应把镜像等同于SEC权威名单。
+
+### 自动行情和财报来源
+
+- `fundamentals.json` 由 `scripts/update_fundamentals.py` 和 GitHub Actions 的 `Refresh US stock prices and SEC annual metrics` 生成。**美股交易日后**尝试获取最近可得的日线收盘价（Yahoo Finance未正式公开授权的chart接口；Stooq CSV备用），**每周**尝试更新 SEC EDGAR XBRL 财务数据。接口可能限流、阻止Github云服务器或不支持某些海外发行人。缓存缺失会显示“暂无数据”，不会臆造股价或财务数字。
+- 当前后台跟踪清单在 `tracked_symbols.json`，初始为 **71只常用股票**。只要编辑该JSON数组增加合法代码并提交，下次工作流就会尝试纳入自动行情/财报。**完整搜索目录不代表所有股票都已自动拉取财报或股价**。
+- 每一条自动数据附来源和数据期。SEC提取的EPS、营业收入、净利润、现金流大多是**最近完整财年**而非TTM；净资产、现金、负债是最近披露的时点数据；股数可能使用已报告流通股数或年度加权股数；FCF和EBITDA可能是依据现金流/利润表计算的近似值。
+- 财务的预测参数（未来3—10年利润增速、未来营业收入增长率、未来利润率、合理估值倍数、行业PB标准等）不会从历史数据自动填充。
+- 手工编辑过的数据优先保留：自动更新仅填空或刷新之前由自动源填的项目。需要替换手填数字时在股票分析页点击“覆盖手填财务数据”并确认。
+- 免费数据源不是交易所实时授权行情，存在行情延迟、历史调整、失效和公开再发布授权限制；请只将本工作台用于个人研究，公开商业使用前核实市场数据授权条款。
+
+### 检查是否已成功获取真实数据
+
+1. 仓库 [Actions](https://github.com/huashihao94-ux/us-market-workbench/actions) 中选择 **Refresh US stock prices and SEC annual metrics** 查看日志。
+2. 如果首次缓存仍为 `mode: pending` 或 `stocks: {}`，说明**更新任务尚未成功发布**；可使用工作流里的 **Run workflow / full**（仓库须允许 Actions 写入）。
+3. 更新成功后，`fundamentals.json` 将有真实股票记录，第二个分页顶部会显示有股价和有财报的数量、刷新时间；股票分析区也将显示数据日期与源。
+4. 对于SEC请求，建议在仓库 Secrets 中设置 `SEC_USER_AGENT`，格式为“应用名称 联系邮箱”，并保持合理请求频率。不要把任何API密钥写进公开网页或GitHub代码。
+
+**跨设备云端双向同步尚未实现**，观察区目前保存在浏览器本地，支持手动JSON导入导出；云端账号同步需要另配受保护的数据库和身份验证。

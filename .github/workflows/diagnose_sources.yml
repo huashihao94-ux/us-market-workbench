@@ -22,10 +22,11 @@ jobs:
           endpoints={
             'sec_facts':'https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json',
             'sec_directory':'https://www.sec.gov/files/company_tickers_exchange.json',
+            'sec_directory_proxy':'https://proxy.cors.dev/https://www.sec.gov/files/company_tickers_exchange.json',
             'yahoo_direct':'https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=5d&interval=1d',
             'stooq':'https://stooq.com/q/d/l/?s=aapl.us&i=d&d1=20261101',
             'nasdaq':'https://api.nasdaq.com/api/quote/AAPL/historical?assetclass=stocks&limit=10',
-            'corsdev_proxy':'https://proxy.cors.dev/https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=5d%26interval=1d',
+            'corsdev_proxy':'https://proxy.cors.dev/https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=5d&interval=1d',
           }
           headers={'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/125.0.0.0 Safari/537.36',
                    'Accept':'application/json,text/csv,*/*',

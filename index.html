@@ -21,7 +21,7 @@
 <article class="panel"><h2>② 偏离200日均线（%）</h2><div class="chartbox"><canvas id="maChart"></canvas></div><p class="small muted">当日收盘价 ÷ 200日平均收盘价 − 1。负值表示位于长期均线下方。</p></article>
 </div><div class="panel" style="margin-top:16px"><div class="chartheader"><h2 style="margin:0">历史年份选择</h2><button class="btn" id="selectAll">全选 / 取消全选</button></div><div id="eventCheckboxes" class="filters"></div><div class="key"><span><span class="dot" style="background:#62d8e7"></span>当前回撤路径</span><span><span class="dot" style="background:#a8aeba"></span>历史下跌路径</span><span>橙色区域：截图中提及的历史典型底部范围（示意，非严格概率区间）</span></div></div></section>
 <section style="margin-top:26px"><h2>历史阶段底部统计 · 对照原视频</h2><div class="grid twocol"><article class="panel"><h2>标普500 · 6次样本</h2><div id="spTable" class="tablewrap"></div></article><article class="panel"><h2>纳斯达克 · 7次样本</h2><div id="nasTable" class="tablewrap"></div></article></div><p class="small muted">上表数字摘自你提供的视频截图，属于视频的原始研究样本；实时回撤图由最新市场历史收盘数据独立计算，因此日期和峰值口径可能不完全一致。</p></section>
-<footer>数据：优先 Yahoo Finance，备用 FRED、Stooq 的日收盘价；有延迟，不保证逐笔实时。每次刷新只加载 GitHub Actions 最近生成并发布的行情文件；不是向交易所发起即时询价。<br>一年高点＝最近252个交易日内的最高日收盘价。阶段高点后交易日数按该高点的交易日计数。历史下跌事件是研究样本，不构成投资建议。若行情接口不可用，页面显示旧缓存或不可用，不编造数据。<br><a style="color:#9bc6e6" href="https://github.com/huashihao94-ux/us-market-workbench" target="_blank" rel="noopener">查看数据代码和更新日志</a></footer>
+<footer>数据：标普500优先 Cboe SPX 历史日线；纳斯达克优先 Nasdaq 历史行情。备用 FRED、Yahoo、Stooq；日线数据不代表逐笔实时行情。每次刷新只加载 GitHub Actions 最近生成并发布的行情文件；不是向交易所发起即时询价。<br>一年高点＝最近252个交易日内的最高日收盘价。阶段高点后交易日数按该高点的交易日计数。历史下跌事件是研究样本，不构成投资建议。若行情接口不可用，页面显示旧缓存或不可用，不编造数据。<br><a style="color:#9bc6e6" href="https://github.com/huashihao94-ux/us-market-workbench" target="_blank" rel="noopener">查看数据代码和更新日志</a></footer>
 </main>
 <script>
 const SAMPLE={

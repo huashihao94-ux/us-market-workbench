@@ -101,14 +101,84 @@ def fred(spec):
     return sorted(rows.items()), "FRED（美联储经济数据库，日收盘数据）"
 
 
+
+def cboe_sp500(spec):
+    if spec["ticker"] != "^GSPC":
+        raise ValueError("Cboe SPX file is only for S&P 500")
+    url = "https://cdn.cboe.com/api/global/us_indices/daily_prices/SPX_History.csv"
+    response = requests.get(url, headers=UA, timeout=25)
+    response.raise_for_status()
+    rows = {}
+    reader = csv.DictReader(io.StringIO(response.text.lstrip("\ufeff")))
+    for line in reader:
+        try:
+            raw_date = (line.get("DATE") or line.get("Date") or "").strip()
+            raw_value = (line.get("SPX") or "").replace(",", "").strip()
+            date = datetime.strptime(raw_date, "%m/%d/%Y").strftime("%Y-%m-%d")
+            value = float(raw_value)
+            if date >= "2008-01-01" and value > 0:
+                rows[date] = round(value, 4)
+        except (ValueError, TypeError):
+            continue
+    if len(rows) < 2000:
+        raise ValueError(f"Cboe SPX returned only {len(rows)} valid observations")
+    return sorted(rows.items()), "Cboe SPX Historical Daily Prices"
+
+
+def nasdaq_index_history(spec):
+    if spec["ticker"] != "^IXIC":
+        raise ValueError("Nasdaq provider only supports Composite")
+    # Nasdaq's public historical endpoint; may restrict cloud access or date windows.
+    url = "https://api.nasdaq.com/api/quote/COMP/historical"
+    headers = {**UA, "Accept": "application/json", "Origin": "https://www.nasdaq.com",
+               "Referer": "https://www.nasdaq.com/", "Accept-Language": "en-US,en;q=0.9"}
+    ranges = (("2009-01-01", "2015-12-31"),
+              ("2016-01-01", "2022-12-31"),
+              ("2023-01-01", datetime.now(timezone.utc).date().isoformat()))
+    parsed = {}
+    for start, end in ranges:
+        res = requests.get(url,
+                           params={"assetclass":"index","fromdate":start,"todate":end,
+                                   "limit":5000, "offset":0},
+                           headers=headers, timeout=22)
+        res.raise_for_status()
+        j = res.json()
+        block = j.get("data") or {}
+        table = block.get("tradesTable") or {}
+        items = table.get("rows") or []
+        for item in items:
+            try:
+                ds = str(item.get("date","")).strip()
+                date = datetime.strptime(ds, "%m/%d/%Y").strftime("%Y-%m-%d") if "/" in ds else ds[:10]
+                raw = str(item.get("close") or item.get("close/last") or "").replace("$","").replace(",","").strip()
+                p = float(raw)
+                if p > 0 and date >= "2008-01-01":
+                    parsed[date] = round(p,4)
+            except (ValueError, TypeError):
+                continue
+        print(f"Nasdaq public history {start}-{end}: {len(items)} source rows",flush=True)
+        if len(items) == 0:
+            raise ValueError("Nasdaq historical endpoint returned no rows")
+    if len(parsed) < 300:
+        raise ValueError(f"Nasdaq historical endpoint returned only {len(parsed)} valid observations")
+    return sorted(parsed.items()), "Nasdaq public historical API (Composite)"
+
+
 def fetch(spec):
-    # FRED first: keyless CSV often works in GitHub Actions whereas Yahoo can rate-limit
-    # shared runners and Stooq's CSV download now often requires a key.
-    providers = [
-        ("FRED", lambda: fred(spec)),
-        ("Yahoo Finance", lambda: yahoo(spec["ticker"])),
-        ("Stooq", lambda: stooq(spec["stooq"])),
-    ]
+    if spec["ticker"] == "^GSPC":
+        providers = [
+            ("Cboe", lambda: cboe_sp500(spec)),
+            ("FRED", lambda: fred(spec)),
+            ("Yahoo Finance", lambda: yahoo(spec["ticker"])),
+            ("Stooq", lambda: stooq(spec["stooq"])),
+        ]
+    else:
+        providers = [
+            ("Nasdaq history", lambda: nasdaq_index_history(spec)),
+            ("FRED", lambda: fred(spec)),
+            ("Yahoo Finance", lambda: yahoo(spec["ticker"])),
+            ("Stooq", lambda: stooq(spec["stooq"])),
+        ]
     errors = []
     for name, supplier in providers:
         try:

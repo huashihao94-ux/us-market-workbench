@@ -128,8 +128,14 @@ async function initSymbols(){
  };
  let isComplete=false;
  try{
-   const response=await fetch("symbols.json?v="+Date.now(),{cache:"no-store"});
-   if(!response.ok)throw Error("HTTP "+response.status);
+   let response;
+   try{
+     response=await fetch("https://raw.githubusercontent.com/huashihao94-ux/us-market-workbench/main/symbols.json?v="+Date.now(),{cache:"no-store"});
+     if(!response.ok)throw Error("GitHub raw HTTP "+response.status);
+   }catch(error){
+     response=await fetch("symbols.json?v="+Date.now(),{cache:"no-store"});
+     if(!response.ok)throw Error("Site cache HTTP "+response.status);
+   }
    const body=await response.json();
    if(!Array.isArray(body.rows)||body.rows.length<20)throw Error("目录为空");
    applyRows(body.rows,body.source||"本地公开目录");

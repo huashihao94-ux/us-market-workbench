@@ -110,7 +110,51 @@ persistAndRender();});
 $("exportBtn").addEventListener("click",()=>{const blob=new Blob([JSON.stringify({format:"stockpool-v1",exportedAt:new Date().toISOString(),items},null,2)],{type:"application/json"});const u=URL.createObjectURL(blob);const a=document.createElement("a");a.href=u;a.download="us-stock-pool-backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)});
 $("importBtn").addEventListener("click",()=>$("importFile").click());
 $("importFile").addEventListener("change",async e=>{const f=e.target.files?.[0];if(!f)return;try{if(f.size>2_000_000)throw Error("文件过大");const x=JSON.parse(await f.text());if(x.format!=="stockpool-v1"||!Array.isArray(x.items))throw Error("文件格式不对");let count=0;for(const s of x.items.slice(0,300)){if(!s||!TYPES[s.type]||typeof s.ticker!=="string"||!s.ticker.trim()||typeof s.name!=="string")continue;const id=s.ticker.trim().toUpperCase().slice(0,20);if(items.some(x=>x.id===id))continue;items.push({id,ticker:id,name:s.name.slice(0,140),type:s.type,createdAt:s.createdAt,inputs:{...defaults(s.type),...(s.inputs||{})}});count++}persistAndRender();$("storeStatus").textContent="导入 "+count+" 只股票，已存在股票未覆盖。"}catch(err){$("storeStatus").textContent="导入失败："+err.message}e.target.value=""});
-async function initSymbols(){try{const res=await fetch("symbols.json?ts="+Date.now(),{cache:"no-store"});if(!res.ok)throw Error("HTTP "+res.status);const json=await res.json();if(!Array.isArray(json.rows)||!json.rows.length)throw Error("empty");const extra=json.rows.filter(row=>Array.isArray(row)&&typeof row[0]==="string"&&typeof row[1]==="string").map(row=>({name:row[0],ticker:row[1],alias:"",exchange:row[2]||""}));const map=new Map(extra.map(x=>[x.ticker,x]));STARTER.forEach(([name,ticker,alias])=>{map.set(ticker,{...(map.get(ticker)||{name,ticker}),alias})});universe=Array.from(map.values());$("universeStatus").textContent="已载入 "+universe.length.toLocaleString()+" 只美股代码（"+esc(json.updatedAt||"目录更新日未知")+"）；名称优先搜索，找不到再匹配代码。上市状态/代码可能变化，以券商为准。";}
-catch{$("universeStatus").textContent="尚未加载完整美股目录，当前可搜索 "+universe.length+" 个常用代码；后台目录同步后会自动扩充。"}}
+async function initSymbols(){
+ const aliasMap=new Map(STARTER.map(([name,ticker,alias])=>[ticker,{name,alias}]));
+ const applyRows=(rows,source)=>{
+  const map=new Map();
+  rows.forEach(row=>{
+    if(!Array.isArray(row)||typeof row[0]!=="string"||typeof row[1]!=="string")return;
+    const ticker=row[1].trim().toUpperCase();
+    if(!ticker)return;
+    map.set(ticker,{name:row[0],ticker,alias:aliasMap.get(ticker)?.alias||"",exchange:row[2]||""});
+  });
+  STARTER.forEach(([name,ticker,alias])=>{
+    if(!map.has(ticker))map.set(ticker,{name,ticker,alias,exchange:""});
+  });
+  universe=Array.from(map.values());
+  $("universeStatus").textContent="已载入 "+universe.length.toLocaleString()+" 只股票候选 · "+source+"。仅为代码索引，不代表数据已经自动覆盖。";
+ };
+ let isComplete=false;
+ try{
+   const response=await fetch("symbols.json?v="+Date.now(),{cache:"no-store"});
+   if(!response.ok)throw Error("HTTP "+response.status);
+   const body=await response.json();
+   if(!Array.isArray(body.rows)||body.rows.length<20)throw Error("目录为空");
+   applyRows(body.rows,body.source||"本地公开目录");
+   isComplete=body.rows.length>=2000;
+ }catch(err){
+   $("universeStatus").textContent="本地目录暂时不可用，正在尝试交易所代码镜像："+err.message;
+ }
+ if(isComplete)return;
+ const base="https://raw.githubusercontent.com/e1001925/Improved-US-Stock-Symbols/main";
+ const exchanges=["nasdaq","nyse","amex"];
+ try{
+  const results=await Promise.all(exchanges.map(async exchange=>{
+    const res=await fetch(base+"/"+exchange+"/"+exchange+"_full_tickers.json",{cache:"no-store"});
+    if(!res.ok)throw Error(exchange+" HTTP "+res.status);
+    let data=await res.json();
+    if(!Array.isArray(data))data=data?.data?.rows||data?.rows||[];
+    return data.map(x=>[x.symbol||x.ticker||"",x.name||x.companyName||"",exchange]).filter(x=>x[0]&&x[1]);
+  }));
+  const rows=[];
+  for(const data of results)for(const [ticker,name,exchange] of data)rows.push([name,ticker,exchange]);
+  if(rows.length>2000)applyRows(rows,"公开交易所代码镜像（备用，代码可能存在滞后）");
+  else throw Error("返回记录太少");
+ }catch(err){
+  $("universeStatus").textContent="当前本地候选 "+universe.length+" 只；备用目录也不可用（"+err.message+"）。名称搜索仍可继续使用本地记录。";
+ }
+}
 items=readStore();const init=items.find(x=>x.type===selectedType);selectedId=init?.id||null;render();initSymbols();
 </script><script src="auto_data.js" defer></script></body></html>

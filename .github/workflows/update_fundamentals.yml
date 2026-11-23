@@ -73,5 +73,16 @@ jobs:
           git add fundamentals.json symbols.json
           if ! git diff --cached --quiet; then
             git commit -m "chore: refresh stock price and SEC filings cache"
-            git push
+            # Source edits may have landed while data was fetched. Rebase
+            # generated files onto the latest main instead of losing results.
+            for n in 1 2 3; do
+              if git pull --rebase origin main && git push origin HEAD:main; then
+                echo "Data successfully pushed to main"
+                exit 0
+              fi
+              git rebase --abort || true
+              sleep 2
+            done
+            echo "::error::Failed to push generated data after retries."
+            exit 1
           fi

@@ -211,9 +211,12 @@ def extract_financials(cik):
 def yahoo_prices(ticker):
     t=quote(ticker.replace(".", "-"),safe="-")
     errors=[]
-    for host in ("query1.finance.yahoo.com","query2.finance.yahoo.com"):
+    for host in ("query1.finance.yahoo.com","query2.finance.yahoo.com","proxy.cors.dev"):
         try:
-            j=get_json(f"https://{host}/v8/finance/chart/{t}?range=1y&interval=1d",PRICE_HEADERS,timeout=12,attempts=1)
+            url=(f"https://proxy.cors.dev/https://query1.finance.yahoo.com/v8/finance/chart/{t}?range=1y&interval=1d"
+                 if host=="proxy.cors.dev" else
+                 f"https://{host}/v8/finance/chart/{t}?range=1y&interval=1d")
+            j=get_json(url,PRICE_HEADERS,timeout=17 if host=="proxy.cors.dev" else 12,attempts=1)
             chart=j["chart"]
             result=(chart.get("result") or [None])[0]
             if not result:
@@ -233,7 +236,7 @@ def yahoo_prices(ticker):
                 lowest=min(lowprices)
             date=datetime.fromtimestamp(timestamp,timezone.utc).date().isoformat()
             row={"price":round(float(price),4),
-                 "priceDate":date, "priceSource":"Yahoo Finance chart (unofficial, daily close)"}
+                 "priceDate":date, "priceSource":("Yahoo Finance chart via third-party cors.dev proxy (unofficial, daily close)" if host=="proxy.cors.dev" else "Yahoo Finance chart (unofficial, daily close)")}
             if safe_num(lowest) and lowest>0:
                 row["low52"]=round(float(lowest),4)
             return row

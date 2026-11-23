@@ -66,12 +66,52 @@ def stooq(symbol):
         raise ValueError("Stooq response invalid or historical data incomplete")
     return sorted(rows.items()), "Stooq（日收盘价）"
 
+def fred(spec):
+    """
+    FRED graph CSV needs no API key. S&P 500 data on FRED is limited
+    to its latest 10 years, so earlier S&P historical curves may be missing.
+    """
+    series_id = "SP500" if spec["ticker"] == "^GSPC" else "NASDAQCOM"
+    response = requests.get(
+        "https://fred.stlouisfed.org/graph/fredgraph.csv",
+        params={"id": series_id},
+        headers=UA,
+        timeout=35,
+    )
+    response.raise_for_status()
+    lines = list(csv.reader(io.StringIO(response.text.lstrip("\ufeff"))))
+    if not lines or series_id not in lines[0]:
+        raise ValueError("Unexpected FRED response, CSV header missing series name")
+    price_col = lines[0].index(series_id)
+    rows = {}
+    for fields in lines[1:]:
+        if len(fields) <= price_col:
+            continue
+        date, value = fields[0].strip(), fields[price_col].strip()
+        if date < "2008-01-01" or value in {"", "."}:
+            continue
+        try:
+            price = float(value)
+            if price > 0:
+                rows[date] = round(price, 4)
+        except ValueError:
+            continue
+    if len(rows) < 250:
+        raise ValueError("FRED did not return enough daily closing observations")
+    return sorted(rows.items()), "FRED（美联储经济数据库，日收盘数据）"
+
+
 def fetch(spec):
-    try:
-        return yahoo(spec["ticker"])
-    except Exception as error:
-        print("Primary provider unavailable:", str(error)[:350], file=sys.stderr)
-        return stooq(spec["stooq"])
+    errors = []
+    for supplier in (lambda: yahoo(spec["ticker"]), lambda: fred(spec), lambda: stooq(spec["stooq"])):
+        try:
+            rows, source = supplier()
+            if len(rows) < 250:
+                raise ValueError("Less than 250 valid daily observations")
+            return rows, source
+        except Exception as error:
+            errors.append(str(error)[:250])
+    raise RuntimeError("All data providers failed: " + " | ".join(errors))
 
 def make_index(spec, rows, source):
     dates = [d for d, c in rows]

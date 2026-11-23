@@ -67,17 +67,27 @@ def github_fallback():
     return sorted(merged.values(), key=lambda x:x[0].casefold())
 
 def main():
+    source = "SEC company_tickers_exchange.json"
     try:
         body = fetch()
     except Exception as exc:
-        print("Official SEC directory unavailable:",str(exc)[:150],flush=True)
-        rows = github_fallback()
-        out = {"updatedAt": datetime.now(timezone.utc).date().isoformat(),
-               "source": "GitHub e1001925/Improved-US-Stock-Symbols (Nasdaq mirror, CIK may be absent)",
-               "rows": rows}
-        OUT.write_text(json.dumps(out,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
-        print(f"Saved fallback {len(rows)} ticker names",flush=True)
-        return
+        print("SEC direct blocked; checking read-only public proxy:",str(exc)[:150],flush=True)
+        try:
+            proxy = session.get("https://proxy.cors.dev/" + SEC,timeout=45)
+            proxy.raise_for_status()
+            body = proxy.json()
+            if len(body.get("data",[]))<2500:
+                raise ValueError("SEC proxy returned too few companies")
+            source = "SEC company_tickers_exchange.json via public cors.dev read-only proxy"
+        except Exception as error:
+            print("SEC proxy unavailable, using listed-exchange mirror:",str(error)[:150],flush=True)
+            rows = github_fallback()
+            out = {"updatedAt": datetime.now(timezone.utc).date().isoformat(),
+                   "source": "GitHub e1001925/Improved-US-Stock-Symbols (Nasdaq mirror, CIK may be absent)",
+                   "rows": rows}
+            OUT.write_text(json.dumps(out,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
+            print(f"Saved fallback {len(rows)} ticker names",flush=True)
+            return
 
     fields = body["fields"]
     name_i, ticker_i = fields.index("name"), fields.index("ticker")
@@ -96,7 +106,7 @@ def main():
         raise ValueError(f"SEC ticker set unexpectedly small: {len(rows)}")
     rows.sort(key=lambda x: x[0].casefold())
     out = {"updatedAt": datetime.now(timezone.utc).date().isoformat(),
-           "source": "SEC company_tickers_exchange.json", "rows": rows}
+           "source": source, "rows": rows}
     OUT.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"Saved {len(rows)} tickers with CIK mapping", flush=True)
 

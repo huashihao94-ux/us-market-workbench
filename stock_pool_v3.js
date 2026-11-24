@@ -238,8 +238,16 @@ async function init(){
  render();if(picked)showSelection();
 }
 function resultsFor(q){
- q=q.trim().toLowerCase();if(!q)return [];
+ const raw=q.trim();q=raw.toLowerCase();if(!q)return [];
  const all=Array.from(universe.values());
+ // If the user types an exact upper-case ticker (e.g. AMD), resolve that
+ // ticker before fuzzy company-name hits like Amdocs (DOX). Company names
+ // such as Uber still take the regular name-first path.
+ const exact=universe.get(raw.toUpperCase());
+ if(exact&&raw===raw.toUpperCase()&&/^[A-Z0-9.^-]{1,10}$/.test(raw)){
+  return [exact,...all.filter(x=>x.ticker!==exact.ticker&&
+   ((x.name+" "+x.alias).toLowerCase().includes(q)||x.ticker.toLowerCase().includes(q)))].slice(0,10);
+ }
  const name=all.filter(x=>(x.name+" "+x.alias).toLowerCase().includes(q));
  if(name.length)return name.sort((a,b)=>Number(b.name.toLowerCase().startsWith(q))-Number(a.name.toLowerCase().startsWith(q))).slice(0,10);
  let code=all.filter(x=>x.ticker.toLowerCase().includes(q));

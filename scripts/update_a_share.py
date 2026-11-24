@@ -25,8 +25,8 @@ def validprice(x):
 def fetch_eastmoney():
     all_rows={}
     last_total=0
-    for pn in range(1,30):
-        params={"pn":pn,"pz":500,"po":1,"np":1,"ut":"bd1d9ddb04089700cf9c27f6f7426281",
+    for pn in range(1,95):
+        params={"pn":pn,"pz":100,"po":1,"np":1,"ut":"bd1d9ddb04089700cf9c27f6f7426281",
                 "fltt":2,"invt":2,"fid":"f3",
                 "fs":"m:0+t:6,m:0+t:80,m:0+t:81,m:1+t:2,m:1+t:23",
                 "fields":"f12,f13,f14,f2"}
@@ -51,8 +51,8 @@ def fetch_eastmoney():
         try:last_total=int(total)
         except (TypeError,ValueError):pass
         print("page",pn,"new stock count",len(all_rows),flush=True)
-        if len(rows)<500:break
-        time.sleep(0.5)
+        if len(rows)<100 or (last_total and len(all_rows)>=last_total):break
+        time.sleep(0.22)
     if len(all_rows)<2500:raise ValueError(f"Eastmoney returned only {len(all_rows)} stocks (expected >2500)")
     return list(sorted(all_rows.values(),key=lambda x:x["code"])), "Eastmoney public clist (prices may be intraday/delayed)"
 

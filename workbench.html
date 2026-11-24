@@ -22,6 +22,7 @@ main{max-width:1450px;margin:auto;padding:22px 15px 50px}h1{font-size:26px;line-
 <a href="index.html">① 指数历史分析</a>
 <a href="workbench.html" class="active">② 分类股票池</a>
 <a href="a-share.html">③ A股股息池</a>
+<button id="refreshAll" type="button">↻ 一键刷新三类数据</button>
 </nav></header>
 <main>
 <div class="intro"><h1>四类股票观察区</h1><p class="muted">不再使用横向柱形图。只看当前市值、PE、ROE和财报实际数值，以及与你的标准相比是小于、等于还是大于。</p></div>
@@ -47,6 +48,6 @@ main{max-width:1450px;margin:auto;padding:22px 15px 50px}h1{font-size:26px;line-
 </div>
 <div class="footnote">四个主分类：巨无霸、优秀成长股、烟蒂股、小市值公司。巨无霸市值门槛为严格大于5000亿美元。TTM PE≤20倍优选；20倍以上、25倍以内属于可接受区间；超过25倍偏高。成长股用你自己预测的未来利润增长率作估值参考，历史营收增长不能直接当作未来预测。所有估值仅用于投资研究。</div>
 </main>
-<script src="stock_pool_v3.js" defer></script>
+<script src="stock_pool_v3.js" defer></script><script src="refresh_center.js" defer></script>
 </body>
 </html>

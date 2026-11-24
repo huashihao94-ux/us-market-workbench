@@ -265,7 +265,23 @@ function reconcile(){
  if(!TYPES[selectedType])selectedType="giant";
  saveStore();render();
 }
-const oldRaw=fetch; // use same-origin/public cache; no private tokens
+const originalRender=render;
+render=function(){
+ let adjusted=false;
+ for(const stock of items){
+   const cap=capital(stock);
+   if(cap!==null&&cap>LIMIT&&stock.type!=="giant"){
+     stock.type="giant";stock.inputs.peLimit="25";adjusted=true;
+   }
+ }
+ if(adjusted){
+   const current=items.find(x=>x.id===selectedId);
+   if(current)selectedType=current.type;
+   saveStore();
+ }
+ originalRender();
+};
+
 loadCache().then(()=>{reconcile();drawSuggestions()});
 reconcile();
 })();

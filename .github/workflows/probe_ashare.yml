@@ -1,0 +1,26 @@
+name: Probe A-share quote source
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/probe_ashare.yml']
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Test Tencent batched A-share quotes
+        run: |
+          python - <<'PY'
+          import urllib.request
+          urls=[
+            'https://qt.gtimg.cn/q=sh600519,sz000858',
+            'https://proxy.cors.dev/https://qt.gtimg.cn/q=sh600519,sz000858'
+          ]
+          for u in urls:
+            try:
+              req=urllib.request.Request(u,headers={'User-Agent':'Mozilla/5.0','Referer':'https://gu.qq.com/'})
+              with urllib.request.urlopen(req,timeout=15) as r:
+                raw=r.read()
+                print(u,'status',r.status,'bytes',len(raw),'example',raw.decode('gb18030','replace')[:280],flush=True)
+            except Exception as e:print(u,'ERROR',str(e)[:180],flush=True)
+          PY

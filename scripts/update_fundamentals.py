@@ -190,7 +190,7 @@ def trailing_twelve_month_eps(facts):
         return {"value":round(fy["value"],5),"end":str(fy["end"]),
                 "method":"最近12个月完整财政年度EPS（10-K）",
                 "periods":[str(fy["start"]),str(fy["end"])],
-                "tag":fy["tag"]}
+                "tag":fy["tag"],"filed":fy["filed"]}
     ytd=max(newer,key=lambda r:(r["end"],r["filed"],-r["rank"]))
     duration=(ytd["end"]-ytd["start"]).days
     older=[r for r in candidates if r["form"].startswith("10-Q")
@@ -204,7 +204,7 @@ def trailing_twelve_month_eps(facts):
     return {"value":round(ttm,5),"end":str(ytd["end"]),
             "method":"FY+当前YTD−上年同段YTD（稀释EPS近似；回购/拆股可能影响）",
             "periods":[str(fy["end"]),str(ytd["end"]),str(prior["end"])],
-            "tag":fy["tag"]}
+            "tag":fy["tag"],"filed":ytd["filed"]}
 
 def extract_financials(cik):
     facts = latest_facts(cik)
@@ -226,6 +226,7 @@ def extract_financials(cik):
     if ttm_eps:
         out["ttmEPS"]=ttm_eps["value"]
         detail["ttmEPS"]={"end":ttm_eps["end"],
+                           "filed":ttm_eps.get("filed", ""),
                            "method":ttm_eps["method"],
                            "periods":ttm_eps["periods"],
                            "tag":ttm_eps["tag"]}

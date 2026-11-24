@@ -1,0 +1,308 @@
+{
+  "updatedAt": null,
+  "source": "初始常用股票名称；待自动全市场同步",
+  "status": "seed",
+  "rows": [
+    {
+      "code": "600519",
+      "name": "贵州茅台",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "000858",
+      "name": "五粮液",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601318",
+      "name": "中国平安",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600036",
+      "name": "招商银行",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601398",
+      "name": "工商银行",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601939",
+      "name": "建设银行",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600000",
+      "name": "浦发银行",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601288",
+      "name": "农业银行",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600900",
+      "name": "长江电力",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601088",
+      "name": "中国神华",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601225",
+      "name": "陕西煤业",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600028",
+      "name": "中国石化",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601857",
+      "name": "中国石油",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600941",
+      "name": "中国移动",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601728",
+      "name": "中国电信",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600050",
+      "name": "中国联通",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "000333",
+      "name": "美的集团",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "000651",
+      "name": "格力电器",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "000001",
+      "name": "平安银行",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "002415",
+      "name": "海康威视",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "300750",
+      "name": "宁德时代",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "300059",
+      "name": "东方财富",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "002594",
+      "name": "比亚迪",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "000725",
+      "name": "京东方Ａ",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601012",
+      "name": "隆基绿能",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600276",
+      "name": "恒瑞医药",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601166",
+      "name": "兴业银行",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600887",
+      "name": "伊利股份",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600690",
+      "name": "海尔智家",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "002304",
+      "name": "洋河股份",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600030",
+      "name": "中信证券",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600104",
+      "name": "上汽集团",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601328",
+      "name": "交通银行",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600016",
+      "name": "民生银行",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600015",
+      "name": "华夏银行",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "000002",
+      "name": "万科Ａ",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600585",
+      "name": "海螺水泥",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601668",
+      "name": "中国建筑",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "601006",
+      "name": "大秦铁路",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600019",
+      "name": "宝钢股份",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "600309",
+      "name": "万华化学",
+      "exchange": "SH",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "002352",
+      "name": "顺丰控股",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    },
+    {
+      "code": "000063",
+      "name": "中兴通讯",
+      "exchange": "SZ",
+      "price": null,
+      "priceDate": null
+    }
+  ]
+}

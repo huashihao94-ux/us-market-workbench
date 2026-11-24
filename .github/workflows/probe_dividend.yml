@@ -1,0 +1,34 @@
+name: Check A-share F10 payout source
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/probe_dividend.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Probe public F10 dividend records for 600519 only
+        run: |
+          python - <<'PY'
+          import json, urllib.parse, urllib.request
+          base="https://datacenter-web.eastmoney.com/api/data/v1/get"
+          headers={"User-Agent":"Mozilla/5.0","Referer":"https://emweb.securities.eastmoney.com/","Origin":"https://emweb.securities.eastmoney.com"}
+          for source in ["direct","proxy"]:
+            for report in ["RPT_SHAREBONUS_DET","RPT_F10_FINANCE_MAINFINADATA"]:
+              q={"reportName":report,"columns":"ALL","filter":'(SECUCODE="600519.SH")',"pageNumber":1,"pageSize":10,"sortColumns":"REPORT_DATE","sortTypes":-1,"source":"HSF10","client":"PC"}
+              url=base+"?"+urllib.parse.urlencode(q)
+              if source=="proxy":url="https://proxy.cors.dev/"+url
+              try:
+                req=urllib.request.Request(url,headers=headers)
+                with urllib.request.urlopen(req,timeout=22) as r: obj=json.loads(r.read().decode("utf-8"))
+                data=(obj.get("result") or {}).get("data") or []
+                print(source,report,"count",len(data),"status",obj.get("success"),"message",obj.get("message"),flush=True)
+                for row in data[:2]:
+                  keys=["REPORT_DATE","NOTICE_DATE","ASSIGN_PROGRESS","PRETAX_BONUS_RMB","EX_DIVIDEND_DATE","SECUCODE","SECURITY_CODE","EPSJB","ROEJQ","REPORT_DATE_NAME","DIVIDENT_RATIO"]
+                  print({k:row.get(k) for k in keys},flush=True)
+                  print("keys",list(row)[:30],flush=True)
+              except Exception as e:print(source,report,"FAIL",repr(e)[:200],flush=True)
+          PY

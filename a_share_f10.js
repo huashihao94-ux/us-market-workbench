@@ -124,7 +124,11 @@ async function updateStockF10(item){
   }else errors.push("财报："+String(tasks[1].reason).slice(0,90));
   item.f10Error=errors.join("；");
   if(changed)save();
- })();
+ document.addEventListener("market:refresh",()=>{
+ const stock=list.find(x=>x.code===selected);
+ if(stock)updateStockF10(stock);
+});
+})();
  active.set(item.code,promise);
  try{await promise}finally{active.delete(item.code);render()}
 }

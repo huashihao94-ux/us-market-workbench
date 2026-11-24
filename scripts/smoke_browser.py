@@ -44,7 +44,7 @@ def us_test(page):
         page.locator("#query").fill(name)
         page.locator("#suggestions button").first.wait_for(timeout=15000)
         chosen=page.locator("#suggestions button").filter(has=page.locator("strong",has_text=ticker)).first
-        if not chosen.count():chosen=page.locator("#suggestions button").first
+        assert chosen.count()>0,f"{ticker}: exact stock-code candidate missing after search {name}"
         chosen.click()
         page.wait_for_function("() => !document.querySelector('#addStock')?.disabled",timeout=70000)
         page.locator("#addStock").click()

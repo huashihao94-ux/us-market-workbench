@@ -75,11 +75,49 @@ def github_company_fallback():
     if len(rows)<2000:raise ValueError(f"Community names only {len(rows)} rows")
     return list(sorted(rows.values(),key=lambda x:x["code"]))
 
+def enrich_tencent_quotes(rows):
+    """Batch quote prices via Tencent, preserving source timestamps and blanks."""
+    import re
+    all_rows={r["code"]:r for r in rows}
+    tickers=[(("sh" if r["exchange"]=="SH" else "sz" if r["exchange"]=="SZ" else "bj")+r["code"])
+             for r in rows]
+    updated=0
+    for start in range(0,len(tickers),65):
+        group=tickers[start:start+65]
+        try:
+            res=requests.get("https://qt.gtimg.cn/q="+",".join(group),
+                             headers={"User-Agent":HEADERS["User-Agent"],
+                                      "Referer":"https://gu.qq.com/"},timeout=18)
+            res.raise_for_status()
+            body=res.content.decode("gb18030","replace")
+            for match in re.finditer(r'v_((?:sh|sz|bj)\d{6})="([^"]*)"',body):
+                symbol=match.group(1);code=symbol[2:]
+                data=match.group(2).split("~")
+                if len(data)<31:continue
+                price=validprice(data[3])
+                stamp=str(data[30])
+                if not price or len(stamp)<8 or not stamp[:8].isdigit():continue
+                item=all_rows.get(code)
+                if not item:continue
+                item["price"]=price
+                item["priceDate"]=stamp[:4]+"-"+stamp[4:6]+"-"+stamp[6:8]
+                updated+=1
+        except Exception as exc:
+            print("Tencent quote chunk",start,"failed:",str(exc)[:100],flush=True)
+        if start%650==0:
+            print("Tencent quote progress",start,updated,flush=True)
+        time.sleep(0.12)
+    print("Tencent prices",updated,"/",len(rows),flush=True)
+    return updated
+
 def main():
     prior=json.loads(FILE.read_text("utf-8")) if FILE.exists() else {"rows":[]}
     try:
         rows,source=fetch_eastmoney()
-        out={"updatedAt":datetime.now(timezone.utc).isoformat(),"source":source,"status":"ok","rows":rows}
+        priced=enrich_tencent_quotes(rows)
+        out={"updatedAt":datetime.now(timezone.utc).isoformat(),
+             "source":source+"; Tencent batch quotes",
+             "status":"ok" if priced else "names_only","rows":rows}
         FILE.write_text(json.dumps(out,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
         print("Saved",len(rows),"A shares")
     except Exception as exc:
@@ -92,9 +130,10 @@ def main():
                 if earlier and validprice(earlier.get("price")):
                     row["price"]=earlier["price"]
                     row["priceDate"]=earlier.get("priceDate")
+            priced=enrich_tencent_quotes(rows)
             FILE.write_text(json.dumps({"updatedAt":datetime.now(timezone.utc).isoformat(),
-              "source":"guidebee/china-stock-data community company-name index; prices only from existing dated cache",
-              "status":"names_only","rows":rows},ensure_ascii=False,separators=(",",":")),encoding="utf-8")
+              "source":"guidebee/china-stock-data company names + Tencent batch quote (price date per stock)",
+              "status":"partial" if priced else "names_only","rows":rows},ensure_ascii=False,separators=(",",":")),encoding="utf-8")
             print("Saved name-only fallback",len(rows),"A shares",flush=True)
         except Exception as fail:
             print("WARNING: community fallback unavailable",repr(fail),flush=True)

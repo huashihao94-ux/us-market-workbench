@@ -101,6 +101,8 @@ def enrich_tencent_quotes(rows):
                 if not item:continue
                 item["price"]=price
                 item["priceDate"]=stamp[:4]+"-"+stamp[4:6]+"-"+stamp[6:8]
+                item["quoteTime"]=stamp if len(stamp)>=14 and stamp[:14].isdigit() else ""
+                item["priceSource"]="Tencent qt.gtimg.cn public quote (intraday or last traded)"
                 updated+=1
         except Exception as exc:
             print("Tencent quote chunk",start,"failed:",str(exc)[:100],flush=True)

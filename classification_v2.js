@@ -4,11 +4,11 @@
 "use strict";
 const LIMIT=5000; // 亿美元 = $500 billion
 delete TYPES.white;
-TYPES.giant={name:"巨无霸（含原白马股）",desc:"市值＞5000亿美元｜TTM PE 最佳≤20，弹性≤25"};
+TYPES.giant={name:"巨无霸",desc:"市值＞5000亿美元｜TTM PE≤20优选，≤25可接受"};
 TYPES.growth={name:"优秀成长股",desc:"盈利成长｜PE与未来盈利增速"};
 TYPES.cigar={name:"烟蒂股",desc:"低估值｜安全边际与地板价"};
 TYPES.small={name:"小市值公司",desc:"尚未盈利／早期公司｜PS＋未来PE"};
-FIELDS_BY_TYPE.giant=["price","shares","ttmEPS","peLimit","asof","source"];
+FIELDS_BY_TYPE.giant=["price","shares","ttmEPS","eps","revenue","roe","fcf","equity","cash","liabilities","dividend","peLimit","asof","source"];
 FIELDS_BY_TYPE.growth=["price","eps","growth","roe","shares","revenue","revGrowth","margin","years","growthMin","forwardLimit","asof","source"];
 FIELDS_BY_TYPE.small=["price","shares","revenue","revGrowth","margin","years","psLimit","forwardLimit","asof","source"];
 FIELD_DEFS.push(["ttmEPS","最近12个月稀释EPS TTM（$/股）","number"]);
@@ -94,7 +94,15 @@ function candidateCached(ticker){return factsCache.stocks?.[ticker.toUpperCase()
 function showLookup(s,c,origin){
  const cap=c?.cap??null;
  const stale=origin?" · 来源："+origin:"";
- marketInfo.innerHTML="<strong>"+esc(s.name)+"（"+esc(s.ticker)+"）</strong> · 总市值："+esc(formatCap(cap))+esc(stale);
+ const d=c?.record||{};
+ const meta=d.financialMeta?.fields||{};
+ const fiscal=meta.ttmEPS?.end||meta.eps?.end||meta.revenue?.end||d.ttmDate||null;
+ const priceDate=d.priceDate||"尚未获取";
+ const reported=meta.eps?.filed||meta.revenue?.filed||null;
+ marketInfo.innerHTML="<strong>"+esc(s.name)+"（"+esc(s.ticker)+"）</strong> · 总市值："+esc(formatCap(cap))+esc(stale)+
+ "<div class='mini-info'>股价："+(typeof d.price==="number"?"$"+fmt(d.price,2):"暂无")+" · 美股收盘日期："+esc(priceDate)+
+ " · TTM EPS："+(typeof d.ttmEPS==="number"?fmt(d.ttmEPS,2)+"美元":"暂无")+" · 财报截止："+esc(fiscal||"暂无")+ 
+ (reported?" · SEC提交："+esc(reported):"")+"</div>";
  if(cap!==null&&cap>LIMIT){
    select.value="giant";select.disabled=true;
    marketInfo.innerHTML+="<div class='mini-info'>超过5000亿美元：自动归入「巨无霸」，无需手动选择分类。</div>";
@@ -197,7 +205,7 @@ drawSuggestions=function(){
  document.querySelectorAll("#candidates .candidate").forEach(b=>{
   const ticker=b.querySelector("strong")?.textContent||"";
   const row=candidateCached(ticker);
-  if(row?.price>0&&row?.shares>0){const info=document.createElement("small");info.textContent=" · 市值"+fmt(row.price*row.shares,0)+"亿美元";b.appendChild(info);}
+  if(row?.price>0&&row?.shares>0){const info=document.createElement("small");info.textContent=" · 市值"+fmt(row.price*row.shares,0)+"亿美元 · 收盘"+(row.priceDate||"日期未知");b.appendChild(info);}
  });
 };
 const addBtn=document.getElementById("add");
@@ -211,7 +219,7 @@ addBtn.addEventListener("click",()=>{
      s.inputs[key]=String(d[key]);s.autoFields=Array.from(new Set([...(s.autoFields||[]),key]));
    }
  }
- s.lookupCap=candidateInfo.cap;
+ s.lookupCap=candidateInfo.cap;s.lookupData=d;
  if(s.type==="giant")s.inputs.peLimit="25";
  selectedType=s.type;saveStore();render();
 });
@@ -224,6 +232,35 @@ drawDetail=function(){
    const checkbox=detail.querySelector("#"+id);if(checkbox)checkbox.closest("label")?.remove();
  }
  const c=capital(stock),a=calc(stock),intro=detail.querySelector(".overview");
+ const record=factsCache.stocks?.[stock.ticker.toUpperCase()]||stock.lookupData||null;
+ if(record){
+  const fm=record.financialMeta?.fields||{};
+  const fdate=(name)=>fm[name]?.end||"—";
+  const filed=fm.eps?.filed||fm.revenue?.filed||"—";
+  const priceDate=record.priceDate||stock.autoMeta?.priceDate||"未知";
+  const metric=(label,value,unit,period)=>'<div class="metric"><small>'+esc(label)+'</small><strong>'+
+     (typeof value==="number"&&Number.isFinite(value)?fmt(value,2)+unit:"—")+'</strong><small>数据期：'+esc(period||"未公布")+'</small></div>';
+  const box=document.createElement("section");box.className="sectiontitle";
+  box.innerHTML='<h3>最近已获取的美股收盘行情与 SEC 财报</h3>'+
+   '<p class="small muted">行情：'+esc(priceDate)+' 收盘（'+esc(record.priceSource||"来源未记录")+'）；财报数据文件截止：'+esc(fm.ttmEPS?.end||fdate("eps"))+
+   '；向SEC提交日期：'+esc(filed)+'。下列年度数据不等于TTM，TTM EPS单独标注。</p>'+
+   '<div class="results">'+
+   metric("最新已取得收盘价",record.price,"美元",priceDate)+
+   metric("TTM 稀释EPS",record.ttmEPS,"美元",fdate("ttmEPS"))+
+   metric("年度EPS",record.eps,"美元",fdate("eps"))+
+   metric("年度营业收入",record.revenue,"亿美元",fdate("revenue"))+
+   metric("年度净利润",record.netIncome,"亿美元",fdate("netIncome"))+
+   metric("年度自由现金流",record.fcf,"亿美元",fdate("fcf"))+
+   metric("期末净资产",record.equity,"亿美元",fdate("equity"))+
+   metric("期末现金",record.cash,"亿美元",fdate("cash"))+
+   metric("期末总负债",record.liabilities,"亿美元",fdate("liabilities"))+
+   metric("年度ROE",record.roe,"%",fdate("roe"))+
+   '</div>'+
+   '<p class="hint">TTM EPS方法：'+esc(fm.ttmEPS?.method||"未披露")+'。金额单位为亿美元；股价、EPS为美元。以上数据按最新成功取得的档案展示，不保证公司最新公告都已同步。</p>';
+  const prior=detail.querySelector(".summarybox");
+  if(prior)prior.after(box);else detail.appendChild(box);
+ }
+
  const capLabel=document.createElement("p");
  capLabel.className="marketcap";
  capLabel.textContent="公司总市值："+formatCap(c)+(c!==null&&c>LIMIT?" · 超过5000亿美元，归入巨无霸":c!==null?" · 不属于巨无霸":" · 等待股价／股数");

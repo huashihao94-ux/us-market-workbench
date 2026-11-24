@@ -154,7 +154,9 @@ function statuses(s,f){
 function renderDetails(){
  const s=items.find(x=>x.ticker===selected);
  if(!s){$("detail").innerHTML='<div class="empty">点击左侧已加入的股票，查看当前估值、实际财报和目标比较。</div>';return;}
- const f=financial(s),r=f.r||{},fm=r.financialMeta?.fields||{},filed=fm.eps?.filed||fm.revenue?.filed||"未取得";
+ const f=financial(s),r=f.r||{},fm=r.financialMeta?.fields||{};
+ const ttmEnd=fm.ttmEPS?.end||"",annualEnd=fm.eps?.end||"";
+ const filed=fm.ttmEPS?.filed||((!ttmEnd||ttmEnd===annualEnd)?(fm.eps?.filed||fm.revenue?.filed):null)||"本期报告提交日期尚未同步";
  const origin=r.priceSource||oneField(s,"price").origin;
  const ptext=r.priceDate||"日期未知";
  const secs=r.financialMeta?.source||"SEC XBRL待查询或缺失";

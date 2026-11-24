@@ -164,6 +164,42 @@ def nasdaq_index_history(spec):
     return sorted(parsed.items()), "Nasdaq public historical API (Composite)"
 
 
+def yahoo_recent(spec):
+    """Fill lagging official index-history feeds with latest completed US sessions.
+    Yahoo chart is unofficial and may 429; read-only public proxy fallback.
+    Never treat intraday price as a completed daily close.
+    """
+    from urllib.parse import quote as pct_encode
+    from datetime import timedelta
+    ticker=pct_encode(spec["ticker"],safe="")
+    url=f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range=3mo&interval=1d"
+    sources=[(url,"Yahoo Finance latest daily closes"),
+             ("https://proxy.cors.dev/"+url,"Yahoo Finance daily closes via public proxy")]
+    now_ny=datetime.now(ZoneInfo("America/New_York"))
+    completed=now_ny.date()
+    if now_ny.hour<16 or (now_ny.hour==16 and now_ny.minute<20):
+        completed=completed-timedelta(days=1)
+    while completed.weekday()>=5:
+        completed-=timedelta(days=1)
+    for uri,source in sources:
+        try:
+            response=requests.get(uri,headers=UA,timeout=26)
+            response.raise_for_status()
+            result=response.json()["chart"]["result"][0]
+            quotes=result["indicators"]["quote"][0]["close"]
+            values={}
+            for ts,price in zip(result["timestamp"],quotes):
+                if price is None or price<=0:continue
+                date=datetime.fromtimestamp(ts,ZoneInfo("America/New_York")).date()
+                if date<=completed:
+                    values[date.isoformat()]=round(float(price),4)
+            if len(values)<10:
+                raise ValueError("Latest data returned too few closed daily sessions")
+            return values,source
+        except Exception as error:
+            print("Yahoo recent fallback:",str(error)[:110],file=sys.stderr,flush=True)
+    return {},None
+
 def fetch(spec):
     if spec["ticker"] == "^GSPC":
         providers = [
@@ -190,6 +226,20 @@ def fetch(spec):
             age_days = (datetime.now(timezone.utc).date() - latest).days
             if age_days > 14:
                 raise ValueError(f"Latest observation {latest} is {age_days} days old")
+            latest_quotes, recent_source=yahoo_recent(spec)
+            if latest_quotes:
+                old_date=rows[-1][0]
+                merged=dict(rows)
+                for date,value in latest_quotes.items():
+                    # Yahoo is only used to append days missing in archival data.
+                    if date>old_date:
+                        previous=merged[max(merged)]
+                        if abs(value/previous-1)>0.15:
+                            raise ValueError("Newest index quote differs >15%; refuse unsafe merge")
+                        merged[date]=value
+                if max(merged)>old_date:
+                    rows=sorted(merged.items())
+                    source=source+" + "+recent_source
             print(f"{name}: {len(rows)} days; latest {rows[-1][0]}", flush=True)
             return rows, source
         except Exception as error:

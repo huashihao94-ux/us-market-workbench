@@ -4,7 +4,7 @@
  */
 (function(){
 "use strict";
-const AUTO_FIELDS=["price","eps","shares","roe","dividend","equity","low52","revenue","cash","debt","ebitda","fcf","currentAssets","liabilities"];
+const AUTO_FIELDS=["price","eps","ttmEPS","shares","roe","dividend","equity","low52","revenue","cash","debt","ebitda","fcf","currentAssets","liabilities"];
 let cached={stocks:{},updatedAt:null,mode:"pending"};
 const holder=document.getElementById("autoDataStatus");
 const formatDate=value=>{

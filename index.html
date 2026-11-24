@@ -48,7 +48,17 @@ function redrawCharts(){const idx=data?.indices?.[$("indexPick").value];if(!idx)
 $("indexPick").addEventListener("change",()=>{drawCheckboxes();redrawCharts()});$("limitPick").addEventListener("change",redrawCharts);
 $("selectAll").addEventListener("click",()=>{const key=$("indexPick").value;const ev=data?.indices?.[key]?.episodes||[];const all=ev.every(e=>selected[key].has(e.date));selected[key]=new Set(all?[]:ev.map(e=>e.date));drawCheckboxes();redrawCharts()});
 function status(msg){$("status").textContent=msg}
-async function reload(){const btn=$("refresh");btn.disabled=true;btn.textContent="载入中…";try{const res=await fetch("data.json?t="+Date.now(),{cache:"no-store"});if(!res.ok)throw Error("HTTP "+res.status);const j=await res.json();data=j;const time=j.updatedAt?new Date(j.updatedAt).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai",hour12:false}):"未知";$("updateTime").textContent="数据文件更新：北京时间 "+time;$("fresh").textContent=j.status==="ok"?"最近日线已读取":j.status==="partial"?"部分旧缓存":"行情暂不可用";if(Object.keys(j.indices||{}).length===0)status("行情尚未生成或数据供应商不可用。请在 GitHub Actions 中运行 Update index data，然后刷新。");else{const dates=Object.values(j.indices).map(v=>v.asof);status("已读取行情文件 · 最新日线截至："+dates.join(" / ")+"。点击刷新不会直接向交易所拉取最新行情。"+(j.errors?.length?" 部分数据采用旧缓存；请检查Actions日志。":""));}redrawSummary();drawCheckboxes();redrawCharts()}catch(e){status("无法读取行情数据："+e.message+"。请确认 Pages 已启用、Actions 已完成及 data.json 已生成。");$("fresh").textContent="未连接数据"}finally{btn.disabled=false;btn.textContent="↻ 刷新数据"}}
+async function reload(){const btn=$("refresh");btn.disabled=true;btn.textContent="载入中…";try{let res;try{res=await fetch("https://raw.githubusercontent.com/huashihao94-ux/us-market-workbench/main/data.json?t="+Date.now(),{cache:"no-store"});if(!res.ok)throw Error("GitHub数据源状态 "+res.status)}catch{res=await fetch("data.json?t="+Date.now(),{cache:"no-store"});}if(!res.ok)throw Error("HTTP "+res.status);const j=await res.json();data=j;const time=j.updatedAt?new Date(j.updatedAt).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai",hour12:false}):"未知";$("updateTime").textContent="数据文件更新：北京时间 "+time;const dateValues=Object.values(j.indices||{}).map(v=>v.asof).filter(Boolean);
+const newest=dateValues.length?dateValues.sort().slice(-1)[0]:null;
+const nyParts=Object.fromEntries(new Intl.DateTimeFormat("en-US",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",hourCycle:"h23"}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+let expected=new Date(Date.UTC(Number(nyParts.year),Number(nyParts.month)-1,Number(nyParts.day)));
+if(Number(nyParts.hour)<17)expected.setUTCDate(expected.getUTCDate()-1);
+while(expected.getUTCDay()===0||expected.getUTCDay()===6)expected.setUTCDate(expected.getUTCDate()-1);
+const expectedText=expected.toISOString().slice(0,10);
+const delayed=dateValues.some(date=>date<expectedText);
+$("fresh").textContent=delayed?"行情可能滞后："+(newest||"未知"):j.status==="ok"?"已更新到最新可得日线":j.status==="partial"?"部分旧缓存":"行情暂不可用";
+$("fresh").style.color=delayed?"#ffd08d":"";
+if(Object.keys(j.indices||{}).length===0)status("行情尚未生成或数据供应商不可用。请在 GitHub Actions 中运行 Update index data，然后刷新。");else{const dates=Object.values(j.indices).map(v=>v.asof);status("已读取行情文件 · 指数真实收盘日期："+dates.join(" / ")+"。点击刷新不会直接向交易所拉取最新行情。"+(j.errors?.length?" 部分数据采用旧缓存；请检查Actions日志。":""));}redrawSummary();drawCheckboxes();redrawCharts()}catch(e){status("无法读取行情数据："+e.message+"。请确认 Pages 已启用、Actions 已完成及 data.json 已生成。");$("fresh").textContent="未连接数据"}finally{btn.disabled=false;btn.textContent="↻ 刷新数据"}}
 $("refresh").addEventListener("click",reload);reload();
 </script>
 </body></html>

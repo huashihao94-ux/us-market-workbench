@@ -19,7 +19,7 @@ on:
       - '.github/workflows/update_fundamentals.yml'
   schedule:
     - cron: '38 3 * * 2-6'
-    - cron: '25 5 * * 0'
+    - cron: '25 5 * * 0,2-6' # SEC财报每日更新（美国交易日次日及周日补偿）
 
 permissions:
   contents: write

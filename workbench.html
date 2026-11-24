@@ -1,166 +1,52 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>分类股票池 · 美股市场工作台</title><meta name="description" content="巨无霸、成长股、烟蒂股、小市值公司四类观察区，估值达标判定与距离进度条">
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>美股分类股票池 | 估值与财报分析</title>
+<meta name="description" content="美股巨无霸、优秀成长股、烟蒂股、小市值公司四分类，自动展示市值、PE、ROE及财务数据，文字比较估值标准。">
 <style>
-:root{color-scheme:dark;--bg:#090d17;--panel:#152033;--line:#2a3b51;--fg:#eef3fb;--muted:#9bacbf;--cyan:#62d8e7;--green:#75dbb3;--red:#ff8799;--gold:#ffc57c}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse 75% 35% at 55% -10%,#203753,transparent 80%),var(--bg);color:var(--fg);font:14px/1.55 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft Yahei",sans-serif}
-button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:var(--cyan)}header{background:#0f1726;border-bottom:1px solid var(--line);padding:16px max(16px,calc((100% - 1400px)/2));display:flex;gap:18px;justify-content:space-between;align-items:center;flex-wrap:wrap}header strong{font-size:19px}header small{display:block;color:var(--muted)}nav{display:flex;gap:8px;flex-wrap:wrap}.tab{border-radius:9px;border:1px solid #364a63;padding:9px 14px;color:#d7e3f1;text-decoration:none;background:#182539;font-weight:600}.tab.active{background:var(--cyan);color:#081522;border-color:var(--cyan)}.wrap{max-width:1430px;margin:auto;padding:24px 16px 64px}h1{font-size:25px;margin:0 0 4px}h2{font-size:17px;margin:0 0 12px}h3{font-size:15px;margin:15px 0 8px}p{margin:7px 0}.muted{color:var(--muted)}.small{font-size:12px}.panel{background:linear-gradient(145deg,#172238,#111b2b);border:1px solid var(--line);border-radius:14px;padding:17px;min-width:0}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.btn{border:1px solid #3d526c;border-radius:9px;background:#203047;color:var(--fg);padding:9px 13px;display:inline-flex;text-decoration:none;align-items:center;justify-content:center;gap:6px}.btn.primary{background:var(--cyan);color:#081522;border-color:var(--cyan);font-weight:750}.btn:disabled{opacity:.45;cursor:not-allowed}.field>span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid #40516b;border-radius:8px;background:#0b1627;color:var(--fg);padding:10px;min-width:0}.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid #62d8e780;outline-offset:1px}.searchgrid{display:grid;grid-template-columns:2fr 1fr auto;gap:10px;align-items:end}.searchbox{position:relative}.candidates{position:absolute;top:100%;left:0;right:0;z-index:20;background:#102139;border:1px solid #46617c;border-radius:9px;margin-top:3px;max-height:320px;overflow:auto;box-shadow:0 12px 25px #0008}.candidate{display:flex;width:100%;justify-content:space-between;gap:8px;border:0;border-bottom:1px solid #2d435a;background:transparent;padding:10px 12px;color:#e8f1fa;text-align:left}.candidate:hover,.candidate:focus{background:#28415a}.candidate small{color:#a9bed1}.chosen{font-size:12px;color:var(--green);min-height:18px;margin-top:6px}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0}.category{background:#111d2e;border:1px solid #32445d;border-radius:13px;color:var(--fg);text-align:left;padding:15px;min-width:0}.category.active{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan);background:#162c42}.category strong{display:block;font-size:16px}.category span{display:block;color:var(--muted);font-size:12px;margin:4px 0}.category b{font-size:22px}.workspace{display:grid;grid-template-columns:minmax(240px,.72fr) minmax(0,1.6fr);gap:15px}.stock{width:100%;color:var(--fg);padding:12px 10px;text-align:left;border:1px solid #30445d;border-radius:9px;background:#101d30;margin:8px 0}.stock.active{border-color:var(--cyan);background:#183149}.stockhead{display:flex;align-items:center;justify-content:space-between;gap:8px}.stock small{color:var(--muted)}.badge{font-size:12px;border-radius:7px;padding:2px 7px;background:#2b3c55;color:#c6d4e6;white-space:nowrap}.badge.pass{color:#91f1c8;background:#194c3b}.badge.fail{color:#ffa3ae;background:#4c2535}.badge.wait{color:#d8caa0;background:#443d29}.details{min-width:0}.overview{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}.bigstatus{font-size:27px;font-weight:800}.passText{color:var(--green)}.failText{color:var(--red)}.waitText{color:var(--gold)}.datafields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}.sectiontitle{border-top:1px solid var(--line);padding-top:15px;margin-top:17px}.rules{display:grid;gap:12px;margin-top:10px}.rule{padding:12px;border:1px solid #293d54;border-radius:10px;background:#0c192a}.ruletop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.ruletop strong{display:block}.ruletop small{display:block;color:var(--muted)}.track{height:12px;background:#364154;border-radius:99px;position:relative;overflow:hidden;margin:12px 0 8px}.targetband{height:100%;background:#225747;position:absolute;top:0;left:0}.currentmark{position:absolute;top:0;bottom:0;width:3px;background:#f8c76f;box-shadow:0 0 0 1px #202b35}.tracklabels{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}.summarybox{background:#102b3c;border:1px solid #2d5b66;border-radius:10px;padding:14px;margin-top:14px}.summarybox strong{font-size:19px}.results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.metric{border:1px solid #2d4159;border-radius:9px;background:#0b192b;padding:10px}.metric small{display:block;color:var(--muted)}.metric strong{font-size:18px}.empty{padding:25px 12px;color:var(--muted);text-align:center;border:1px dashed #40536a;border-radius:10px}.notice{padding:10px 13px;border-left:3px solid var(--gold);background:#2b2b30;color:#e0d1b2;border-radius:5px}.hint{font-size:12px;color:var(--muted)}.notearea{margin-top:15px}.qual{display:flex;align-items:center;gap:7px;margin-top:9px}.qual input{accent-color:var(--cyan)}.tools{display:flex;gap:8px;flex-wrap:wrap}footer{border-top:1px solid var(--line);margin-top:24px;padding-top:14px;color:var(--muted);font-size:12px}@media(max-width:1020px){.datafields{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:850px){.workspace{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.datafields{grid-template-columns:repeat(2,minmax(0,1fr))}.results{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.searchgrid{grid-template-columns:1fr}.cards{gap:7px}.category{padding:11px}.category strong{font-size:14px}.datafields{grid-template-columns:1fr 1fr;gap:8px}.panel{padding:13px}.wrap{padding:14px 10px 50px}.rule{padding:10px}}
-</style></head><body>
-<header><div><strong>◈ 美股市场工作台</strong><small>US MARKET WORKBENCH · 分类观察与估值</small></div><nav><a href="index.html" class="tab">① 指数历史分析</a><a href="workbench.html" class="tab active">② 分类股票池</a><a href="a-share.html" class="tab">③ A股股息池</a></nav></header>
-<main class="wrap"><h1>四类股票 · 估值观察区</h1><p class="muted">按你的投资笔记划分股票类型，输入名字选择代码，放入观察区，再对照各自标准计算「达标 / 未达标 / 待数据」及差距。</p>
-<p class="notice small">股票名称优先搜索SEC代码目录；已跟踪的股票自动读取最新成功生成的<strong>日线收盘价与SEC年度财报指标</strong>。数据可能缺失或滞后，不保证实时行情、每只股票都覆盖或跨设备同步。</p>
-<section class="panel" style="margin-top:13px"><h2>搜索股票 → 选择分类 → 加入观察区</h2>
-<div class="searchgrid"><label class="field searchbox"><span>股票名称（优先模糊搜索，找不到再按代码）</span><input id="search" autocomplete="off" placeholder="例如 Apple、Microsoft、苹果、NVIDIA" aria-autocomplete="list"><div id="candidates" class="candidates" style="display:none"></div><div id="chosen" class="chosen"></div></label>
-<label class="field"><span>归属分类</span><select id="newType"><option value="giant">巨无霸</option><option value="growth">优秀成长股</option><option value="cigar">烟蒂股</option><option value="small">小市值公司</option></select></label>
-<button id="add" class="btn primary" type="button">＋ 加入观察区</button></div>
-<p class="hint" id="universeStatus">正在读取股票名称目录…</p>
+:root{color-scheme:dark;--bg:#0b111c;--panel:#152234;--line:#304157;--fg:#eef4fa;--muted:#a6b5c5;--cyan:#79d9e7;--green:#82ddbb;--red:#ff9da6;--gold:#ffcb89}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% 0,#152c41 0,transparent 42%),var(--bg);font:14px/1.58 Inter,system-ui,-apple-system,"Microsoft Yahei","PingFang SC",sans-serif;color:var(--fg)}a{color:var(--cyan)}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}header{border-bottom:1px solid var(--line);background:#10192a;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:15px max(15px,calc((100vw - 1400px)/2))}header strong{font-size:20px}nav{display:flex;gap:8px;flex-wrap:wrap}nav a{color:var(--fg);text-decoration:none;padding:8px 13px;border:1px solid #3c526d;border-radius:8px;background:#1b2b40}nav a.active{background:var(--cyan);color:#08131f;border-color:var(--cyan);font-weight:750}
+main{max-width:1450px;margin:auto;padding:22px 15px 50px}h1{font-size:26px;line-height:1.25;margin:0 0 8px}h2{font-size:17px;margin:0 0 10px}h3{font-size:15px;margin:19px 0 11px}.muted{color:var(--muted)}.small{font-size:12px}.panel{border:1px solid var(--line);background:linear-gradient(145deg,#182538,#121e2e);border-radius:13px;padding:18px;min-width:0}.intro{margin:0 0 15px}.notice{background:#292b32;color:#f5dbaf;border-left:3px solid var(--gold);padding:10px 13px;border-radius:6px;font-size:12px;margin-bottom:16px}.data-status{color:var(--muted);font-size:12px;padding-top:7px}
+.searchline{display:grid;grid-template-columns:minmax(220px,2fr) minmax(175px,1fr) auto;gap:12px;align-items:end}.field{display:block;min-width:0}.field>span{font-size:12px;color:var(--muted);display:block;margin-bottom:5px}.field input,.field select,textarea{width:100%;background:#0b1727;color:#f5faff;border:1px solid #41566e;border-radius:8px;padding:10px;outline:none}.field input:focus,.field select:focus,textarea:focus{border-color:var(--cyan)}.searchblock{position:relative}.suggestions{position:absolute;z-index:10;top:calc(100% - 2px);left:0;right:0;max-height:360px;overflow:auto;border-radius:9px;border:1px solid #4c6381;background:#13263c;box-shadow:0 12px 30px #0008}.suggestions[hidden]{display:none}.suggestions button{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;width:100%;text-align:left;color:var(--fg);background:transparent;border:0;border-bottom:1px solid #2b435b;padding:9px 11px}.suggestions button:hover,.suggestions button:focus{background:#223f5b}.suggestions small{color:#a9bdcf;font-size:11px}.selection{margin-top:12px;padding:11px 13px;border-radius:9px;border:1px solid #375069;background:#102237;line-height:1.75}.selection strong{color:var(--cyan)}.selection small{display:block;color:var(--muted)}.primary{background:var(--cyan);color:#08131c;font-weight:760;border-color:var(--cyan)}button:not(.cat):not(.stock):not(.suggestions button){border:1px solid #425771;padding:9px 12px;border-radius:8px;background:#1d3045;color:var(--fg)}button.primary{background:var(--cyan);color:#06141f;border-color:var(--cyan)}
+.categories{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin:17px 0}.cat{padding:14px;border:1px solid #344b65;border-radius:11px;background:#152236;color:var(--fg);text-align:left}.cat.active{border-color:var(--cyan);background:#1c364b;box-shadow:0 0 0 1px var(--cyan)}.cat strong{display:block;font-size:16px}.cat small{display:block;color:var(--muted);min-height:42px}.cat b{font-size:23px}
+.layout{display:grid;grid-template-columns:minmax(245px,0.74fr) minmax(0,1.8fr);gap:14px}.stock{display:flex;flex-direction:column;width:100%;gap:5px;text-align:left;background:#0e1b2c;color:#e8f3fa;padding:12px;margin:7px 0;border:1px solid #354961;border-radius:9px}.stock.active{border-color:var(--cyan);background:#1a3145}.stock span{font-size:13px}.stock strong{font-size:15px}.stock small{font-size:11px;color:var(--muted)}.empty{padding:28px 10px;text-align:center;color:var(--muted);border:1px dashed #3c5268;border-radius:9px}.aside-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.aside-actions button{font-size:12px}
+.detail-title{display:flex;align-items:start;justify-content:space-between;gap:10px;flex-wrap:wrap}.detail-title h2{font-size:19px;margin-bottom:3px}.buttons{display:flex;gap:8px;flex-wrap:wrap}.buttons .danger{color:#ffd7dc!important;border-color:#80475b!important}.datebox{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;border:1px solid #2e5066;background:#0e2436;padding:12px;border-radius:9px;margin-top:14px}.datebox strong{color:var(--cyan)}.datebox span{color:var(--muted);font-size:12px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.metric{background:#0c1929;border:1px solid #30445c;border-radius:10px;padding:11px;min-width:0}.metric span{display:block;font-size:12px;color:var(--muted)}.metric strong{display:block;font-size:19px;margin:5px 0;word-break:break-word}.metric small{font-size:11px;color:#90aabf}.note{color:var(--muted);font-size:12px;margin-top:8px}
+.compare-list{display:grid;gap:9px}.comparison{display:grid;grid-template-columns:minmax(160px,1.4fr) minmax(135px,1fr) auto;align-items:center;gap:8px;background:#0f1d30;border:1px solid #30445c;border-radius:10px;padding:13px}.comparison strong{font-size:14px}.comparison .compare-value{font-size:18px;font-weight:750;color:#f3f9fe;text-align:right}.badge{border:1px solid #506078;border-radius:6px;padding:4px 8px;font-size:12px;white-space:nowrap;background:#263549}.badge.pass{border-color:#28644e;background:#153b32;color:#93efc9}.badge.fail{border-color:#6f3d49;background:#422532;color:#ffb2b9}.badge.neutral{border-color:#655239;background:#373226;color:#eacf9e}.editor{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}textarea{resize:vertical}.footnote{margin-top:25px;padding-top:13px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+@media(max-width:1000px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.comparison{grid-template-columns:1fr auto}}@media(max-width:830px){.layout{grid-template-columns:1fr}.categories{grid-template-columns:repeat(2,minmax(0,1fr))}.cat small{min-height:0}}@media(max-width:570px){.searchline{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.comparison{grid-template-columns:1fr}.comparison .compare-value{text-align:left}.editor{grid-template-columns:1fr 1fr}.panel{padding:13px}main{padding:14px 10px 35px}}
+</style>
+</head>
+<body>
+<header><div><strong>◈ 美股市场工作台</strong><div class="small muted">股票分类 · 最新可得财报 · 估值标准对比</div></div><nav>
+<a href="index.html">① 指数历史分析</a>
+<a href="workbench.html" class="active">② 分类股票池</a>
+<a href="a-share.html">③ A股股息池</a>
+</nav></header>
+<main>
+<div class="intro"><h1>四类股票观察区</h1><p class="muted">不再使用横向柱形图。只看当前市值、PE、ROE和财报实际数值，以及与你的标准相比是小于、等于还是大于。</p></div>
+<div class="notice">股价为最近成功取得的美股日线收盘价，不是盘中实时行情。SEC财报数据和你的未来增长率预测分开显示；自动数据缺失时显示「—」，不会伪造。</div>
+<section class="panel">
+<h2>搜索股票名称，选择代码并加入观察区</h2>
+<div class="searchline">
+<div class="field searchblock"><span>股票名字优先模糊搜索；找不到再按代码</span><input id="query" autocomplete="off" aria-autocomplete="list" placeholder="Uber、NVIDIA、NerdWallet、苹果……"><div id="suggestions" class="suggestions" hidden></div></div>
+<label class="field"><span>股票分类（巨无霸会自动识别）</span><select id="newType">
+<option value="growth">优秀成长股</option><option value="cigar">烟蒂股</option><option value="small">小市值公司</option><option value="giant">巨无霸</option>
+</select></label>
+<button class="primary" id="addStock" type="button" disabled>＋ 加入观察区</button>
+</div>
+<div class="selection" id="selection">先输入股票名称并点击搜索候选。</div>
+<div id="universeStatus" class="data-status">读取股票名称列表中…</div><div id="dataStatus" class="data-status">读取股票财务缓存中…</div>
 </section>
-<section class="panel" style="margin:13px 0"><div class="row"><strong>自动行情与财务数据</strong><button id="refreshAutoData" type="button" class="btn">↻ 刷新已发布缓存</button><span id="autoDataStatus" class="small muted">正在读取财报缓存…</span></div><p class="hint">自动行情采用最新可获得的每日收盘价；财务指标多为最近完整财政年度或季度末，不等于实时或TTM。历史增长率不会替代你对未来的预测。GitHub Actions会尝试定期刷新，按钮只读取最近已发布的数据。</p></section>
-<div class="cards" id="categoryCards"></div>
-<div class="workspace">
-<section class="panel"><div class="overview"><h2 id="listTitle">观察区</h2><span class="badge" id="listCount">0只</span></div><div id="stockList" aria-label="已保存股票列表"></div><div class="sectiontitle"><h3>观察区备份</h3><div class="tools"><button id="exportBtn" class="btn" type="button">导出JSON</button><button id="importBtn" class="btn" type="button">导入JSON</button><input type="file" accept=".json,application/json" id="importFile" hidden></div><p class="hint" id="storeStatus">当前浏览器自动保存。换设备请导出、导入备份。</p></div></section>
-<section class="panel details"><div id="detail"></div></section>
-</div><footer>本工作台是估值研究记录，不是实时买卖系统。四个分类：巨无霸（按市值自动归类）、优秀成长股、烟蒂股、小市值公司。增长公式PE = 2g +（10～20）为笔记经验方法，非公认统一定价定律。区间和自设阈值可在个股中修改。缺失数据不判为未达标，更不会自动填造行情。</footer>
+<div id="categories" class="categories"></div>
+<div class="layout">
+<section class="panel"><h2 id="listLabel">观察区</h2><div id="list"></div><h3>本机观察记录</h3>
+<div class="aside-actions"><button id="export" type="button">导出JSON</button><button id="import" type="button">导入JSON</button><input id="importFile" type="file" hidden accept=".json,application/json"></div>
+<p id="saveInfo" class="small muted">保留旧版股票观察记录，存于当前浏览器。切换设备需导入JSON备份，尚无账号同步。</p></section>
+<section class="panel" id="detail"><div class="empty">请选择一只股票查看详细数据。</div></section>
+</div>
+<div class="footnote">四个主分类：巨无霸、优秀成长股、烟蒂股、小市值公司。巨无霸市值门槛为严格大于5000亿美元。TTM PE≤20倍优选；20倍以上、25倍以内属于可接受区间；超过25倍偏高。成长股用你自己预测的未来利润增长率作估值参考，历史营收增长不能直接当作未来预测。所有估值仅用于投资研究。</div>
 </main>
-<script>
-"use strict";
-const TYPES={giant:{name:"巨无霸",desc:"市值＞5000亿美元，TTM PE20—25倍"},growth:{name:"优秀成长股",desc:"盈利成长＋增长率估值"},cigar:{name:"烟蒂股",desc:"低估值＋安全边际＋地板价"},small:{name:"小市值公司",desc:"PS＋未来PE"}};
-const STARTER=[["Apple Inc.","AAPL","苹果"],["Microsoft Corporation","MSFT","微软"],["NVIDIA Corporation","NVDA","英伟达"],["Alphabet Inc.","GOOGL","谷歌"],["Amazon.com Inc.","AMZN","亚马逊"],["Meta Platforms Inc.","META","脸书"],["Tesla Inc.","TSLA","特斯拉"],["Berkshire Hathaway Inc. Class B","BRK-B","伯克希尔"],["Coca-Cola Company","KO","可口可乐"],["PepsiCo Inc.","PEP","百事可乐"],["Procter & Gamble","PG","宝洁"],["Johnson & Johnson","JNJ","强生"],["Visa Inc.","V","维萨"],["Mastercard Incorporated","MA","万事达"],["Costco Wholesale","COST","好市多"],["Walmart Inc.","WMT","沃尔玛"],["McDonald's Corporation","MCD","麦当劳"],["UnitedHealth Group","UNH","联合健康"],["JPMorgan Chase","JPM","摩根大通"],["Bank of America","BAC","美国银行"],["Citigroup","C","花旗"],["Wells Fargo","WFC","富国银行"],["Goldman Sachs","GS","高盛"],["Morgan Stanley","MS","摩根士丹利"],["Advanced Micro Devices","AMD","超威半导体"],["Broadcom","AVGO","博通"],["Taiwan Semiconductor","TSM","台积电"],["ASML Holding","ASML","阿斯麦"],["Adobe","ADBE","奥多比"],["Salesforce","CRM","赛富时"],["Palantir Technologies","PLTR","帕兰提尔"],["Snowflake Inc.","SNOW","雪花"],["CrowdStrike Holdings","CRWD","众击"],["Uber Technologies","UBER","优步"],["Airbnb","ABNB","爱彼迎"],["Netflix","NFLX","奈飞"],["Shopify","SHOP","Shopify"],["Coinbase Global","COIN","Coinbase"],["Robinhood Markets","HOOD","Robinhood"],["PayPal Holdings","PYPL","贝宝"],["Block Inc.","XYZ","Block"],["Intel Corporation","INTC","英特尔"],["Micron Technology","MU","美光"],["Qualcomm","QCOM","高通"],["Texas Instruments","TXN","德州仪器"],["Nike","NKE","耐克"],["Starbucks","SBUX","星巴克"],["Disney","DIS","迪士尼"],["Ford Motor","F","福特"],["General Motors","GM","通用汽车"],["Boeing","BA","波音"],["Lockheed Martin","LMT","洛克希德"],["Exxon Mobil","XOM","埃克森美孚"],["Chevron","CVX","雪佛龙"],["Eli Lilly","LLY","礼来"],["Novo Nordisk","NVO","诺和诺德"]];
-const $=id=>document.getElementById(id),esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const key="us-stock-watch-categories-v1";
-let universe=STARTER.map(([name,ticker,cn])=>({name,ticker,alias:cn,exchange:""})),items=[],selectedType="giant",selectedId=null,picked=null;
-function readStore(){try{const x=JSON.parse(localStorage.getItem(key)||"[]");return Array.isArray(x)?x.filter(q=>q&&typeof q.ticker==="string"&&TYPES[q.type]).slice(0,300):[]}catch{return []}}
-function saveStore(){try{localStorage.setItem(key,JSON.stringify(items));$("storeStatus").textContent="已保存到此浏览器 · "+new Date().toLocaleTimeString("zh-CN")}catch(e){$("storeStatus").textContent="浏览器保存失败："+e.message}}
-function num(v){if(v===undefined||v===null||String(v).trim()==="")return null;let x=Number(v);return Number.isFinite(x)?x:null}
-function ok(...vs){return vs.every(x=>x!==null&&Number.isFinite(x))}
-function positive(x){return ok(x)&&x>0}
-function fmt(v,d=2){return Number.isFinite(v)?v.toLocaleString("zh-CN",{maximumFractionDigits:d,minimumFractionDigits:d}):"—"}
-function defaults(type){return {price:"",eps:"",shares:"",dividend:"",equity:"",roe:"",growth:type==="giant"?"5":"",revGrowth:"",revenue:"",margin:"",years:"3",low52:"",cash:"",debt:"",ebitda:"",fcf:"",currentAssets:"",liabilities:"",manualFair:"",peLimit:type==="giant"?"20":type==="growth"?"70":"20",roeLimit:"20",growthMin:"20",forwardLimit:"20",marginRequired:"30",floorPremium:"15",evMultiple:"5",fcfMultiple:"10",pbHistoric:"",bank:false,moat:false,lossMaking:false,source:"",asof:"",memo:""}}
-function byId(){return items.find(x=>x.id===selectedId)}
-function calc(s){const v=s.inputs||{},p=num(v.price),eps=num(v.eps),shares=num(v.shares),div=num(v.dividend),eq=num(v.equity),roe=num(v.roe),growth=num(v.growth),revenue=num(v.revenue),rg=num(v.revGrowth),marginPct=num(v.margin),years=num(v.years),low=num(v.low52),cash=num(v.cash),debt=num(v.debt),ebitda=num(v.ebitda),fcf=num(v.fcf),assets=num(v.currentAssets),liab=num(v.liabilities),manual=num(v.manualFair),cap=positive(p)&&positive(shares)?p*shares:null,pe=positive(eps)&&positive(p)?p/eps:null,pb=positive(cap)&&positive(eq)?cap/eq:null,yieldPct=positive(p)&&ok(div)?div/p*100:null,ev=ok(cap,debt,cash)?cap+debt-cash:null,evRatio=ok(ev)&&positive(ebitda)?ev/ebitda:null,fcfYield=positive(cap)&&ok(fcf)?fcf/cap*100:null,ncav=ok(assets,liab)?assets-liab:null;
-const evFair=positive(shares)&&positive(ebitda)&&ok(debt,cash)&&positive(num(v.evMultiple))?(num(v.evMultiple)*ebitda-debt+cash)/shares:null;
-const fcfFair=positive(shares)&&positive(fcf)&&positive(num(v.fcfMultiple))?num(v.fcfMultiple)*fcf/shares:null;
-const estimates=[evFair,fcfFair,manual].filter(positive);const fair=estimates.length?Math.min(...estimates):null,mos=positive(fair)&&positive(p)?(1-p/fair)*100:null;
-const ps=positive(cap)&&positive(revenue)?cap/revenue:null,yearsOK=ok(years)&&years>0&&years<=15,projRevenue=positive(revenue)&&ok(rg)&&yearsOK?revenue*Math.pow(1+rg/100,years):null,projProfit=positive(projRevenue)&&positive(marginPct)?projRevenue*marginPct/100:null,forwardPE=positive(cap)&&positive(projProfit)?cap/projProfit:null;
-const tests=[];
-function test(label,actual,target,dir,unit,needed=true,explain=""){const known=ok(actual,target)&&target>0;const pass=known&&(dir==="lower"?actual<=target:actual>=target);tests.push({label,actual,target,dir,unit,known,pass,needed,explain})}
-let heading="",special="",hidden=[];
-if(v.bank&&(s.type==="white"||s.type==="giant")){heading="银行股PB历史比较（行业专用）";test("PB ≤ 历史参考PB",pb,num(v.pbHistoric),"lower","倍");test("护城河/经营质量人工核实",v.moat?1:0,1,"higher","项");special="银行优先比较PB与历史水平；资产质量、不良贷款、资本充足率需要另外判断。";}
-else if(s.type==="white"){heading="白马股估值标准";test("当前PE ≤ 目标PE",pe,num(v.peLimit),"lower","倍");test("ROE ≥ 目标ROE",roe,num(v.roeLimit),"higher","%");test("护城河仍稳固（人工确认）",v.moat?1:0,1,"higher","项");special="笔记原参考PE约20倍，特别看好时25倍；ROE 20%是笔记中的参考门槛，不是巴菲特统一硬规则。";}
-else if(s.type==="giant"){heading="巨无霸保守估值";const target=ok(growth)?Math.min(num(v.peLimit)??20,2*Math.max(0,growth)+10):num(v.peLimit);test("当前PE ≤ 巨无霸目标PE",pe,target,"lower","倍");test("护城河/经营质量人工确认",v.moat?1:0,1,"higher","项");special="笔记假设长期利润增长5%，按PE = 2g+10对应20倍；输入实际预测增长率后采用更保守的PE（不高于上限）。";}
-else if(s.type==="growth"){if(v.lossMaking){heading="未盈利成长股：PS＋未来PE";test("未来预测PE ≤ 设定上限",forwardPE,num(v.forwardLimit),"lower","倍");test("预计年营收增速 ≥ 最低要求",rg,num(v.growthMin),"higher","%");special="按笔记：未来年收入＝当前收入×(1+增长率)^年数；预计净利润＝未来收入×净利率；未来PE＝当前市值÷未来净利润。未来PE上限20倍是可修改的示例设置。";}
-else{heading="优秀成长股：增长率对应PE";const target=ok(growth)?2*Math.max(0,growth)+10:null;test("当前PE ≤ 2×预测增长率+10",pe,target,"lower","倍");test("预计利润增长率 ≥ 自设门槛",growth,num(v.growthMin),"higher","%");special="笔记中g=30%时PE=70倍。增长率是未来利润预测，不是保证；20%最低增长门槛为可修改的示例设置。";}}
-else if(s.type==="cigar"){heading="烟蒂股：便宜＋安全边际＋地板价";const cheap=[ok(pe)&&pe<15,ok(pb)&&pb<1,ok(yieldPct)&&yieldPct>=3];const cheapKnown=ok(pe)||ok(pb)||ok(yieldPct);tests.push({label:"低估值初筛至少命中一项（PE<15 / PB<1 / 股息≥3%）",actual:cheap.filter(Boolean).length,target:1,dir:"higher",unit:"项",known:cheapKnown,pass:cheap.some(Boolean),needed:true});test("安全边际 ≥ 目标要求",mos,num(v.marginRequired),"higher","%");test("现价 ≤ 52周低点上方设定比例",p,positive(low)&&ok(num(v.floorPremium))?low*(1+num(v.floorPremium)/100):null,"lower","美元");special="笔记初筛三项不要求同时满足；安全边际与地板区间属于本工作台新增的可编辑执行规则。点击下方Burry独立模型可看详细估值。";}
-const missing=tests.filter(t=>t.needed&&!t.known),failed=tests.filter(t=>t.needed&&t.known&&!t.pass);
-const status=missing.length?"wait":failed.length?"fail":"pass";
-return {p,eps,cap,pe,pb,yieldPct,roe,ev,evRatio,fcfYield,ncav,evFair,fcfFair,fair,mos,ps,projRevenue,projProfit,forwardPE,tests,status,missing,failed,heading,special};
-}
-function statusName(s){return s==="pass"?"达标":s==="fail"?"未达标":"待补数据"}
-function statusBadge(status){return '<span class="badge '+status+'">'+statusName(status)+'</span>'}
-function drawCategories(){const data=Object.keys(TYPES).map(type=>{const arr=items.filter(x=>x.type===type);return {type,count:arr.length,passed:arr.filter(s=>calc(s).status==="pass").length}});$("categoryCards").innerHTML=data.map(x=>'<button type="button" class="category '+(selectedType===x.type?"active":"")+'" data-type="'+x.type+'"><strong>'+esc(TYPES[x.type].name)+'</strong><span>'+esc(TYPES[x.type].desc)+'</span><b>'+x.count+'</b> 只观察　<span style="display:inline;color:var(--green)">'+x.passed+'只达标</span></button>').join("");$("categoryCards").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{selectedType=b.dataset.type;const first=items.find(s=>s.type===selectedType);selectedId=first?.id||null;render()}))}
-function drawList(){const arr=items.filter(s=>s.type===selectedType);$("listTitle").textContent=TYPES[selectedType].name+" · 观察区";$("listCount").textContent=arr.length+"只";$("stockList").innerHTML=arr.length?arr.map(s=>{const a=calc(s);return '<button type="button" class="stock '+(s.id===selectedId?"active":"")+'" data-id="'+esc(s.id)+'"><div class="stockhead"><strong>'+esc(s.name)+'</strong>'+statusBadge(a.status)+'</div><div><small>'+esc(s.ticker)+' · '+(ok(a.p)?"现价 $"+fmt(a.p):"待录入股价")+'</small></div></button>'}).join(""):'<div class="empty">这个分类还没有股票。<br>在上方搜索名称并加入。</div>';
-$("stockList").querySelectorAll(".stock").forEach(b=>b.addEventListener("click",()=>{selectedId=b.dataset.id;drawList();drawDetail()}))}
-const FIELD_DEFS=[
-["price","现价 ($/股)","number"],["eps","最近年度EPS（非TTM，$/股）","number"],["shares","总股数 (亿股)","number"],["roe","ROE (%)","number"],["growth","预计利润年增速g (%)","number"],["dividend","每股年股息 ($)","number"],["equity","净资产 (亿美元)","number"],["low52","52周最低价 ($)","number"],["revenue","当前年营业收入 (亿美元)","number"],["revGrowth","预计收入年增速 (%)","number"],["margin","未来净利润率 (%)","number"],["years","预测年数","number"],["cash","现金 (亿美元)","number"],["debt","有息债务 (亿美元)","number"],["ebitda","EBITDA (亿美元)","number"],["fcf","自由现金流FCF (亿美元)","number"],["currentAssets","流动资产 (亿美元)","number"],["liabilities","总负债 (亿美元)","number"],["manualFair","人工估算合理价 ($/股)","number"],["peLimit","PE上限 (倍)","number"],["roeLimit","ROE下限 (%)","number"],["growthMin","最低增长率 (%)","number"],["forwardLimit","未来PE上限 (倍)","number"],["marginRequired","安全边际目标 (%)","number"],["floorPremium","低点上方容忍幅度 (%)","number"],["evMultiple","EV/EBITDA目标倍数","number"],["fcfMultiple","FCF目标倍数","number"],["pbHistoric","银行历史参考PB","number"],["asof","财报/价格日期","text"],["source","财务数据来源","text"]];
-const FIELDS_BY_TYPE={small:["price","shares","revenue","revGrowth","margin","years","forwardLimit","asof","source"],giant:["price","eps","growth","peLimit","shares","dividend","asof","source"],growth:["price","eps","growth","roe","shares","revenue","revGrowth","margin","years","growthMin","forwardLimit","asof","source"],cigar:["price","eps","shares","equity","dividend","low52","cash","debt","ebitda","fcf","currentAssets","liabilities","manualFair","evMultiple","fcfMultiple","marginRequired","floorPremium","asof","source"]};
-function field(id,v){const f=FIELD_DEFS.find(x=>x[0]===id);if(!f)return"";const value=v[id]??"";return '<label class="field"><span>'+esc(f[1])+'</span><input data-k="'+id+'" type="'+f[2]+'" '+(f[2]==="number"?'step="any" inputmode="decimal"':'')+' value="'+esc(value)+'"></label>'}
-function metric(label,value,unit=""){return '<div class="metric"><small>'+esc(label)+'</small><strong>'+((Number.isFinite(value))?fmt(value)+esc(unit):"—")+'</strong></div>'}
-function ruleHTML(t){const valueText=t.known?fmt(t.actual,2):"未填写";const goalText=fmt(t.target,2);const bad=t.known&&!t.pass;
-let difference="资料待补齐";
-if(t.known){if(t.dir==="lower"){difference=t.pass?"低于上限 "+fmt(t.target-t.actual,2)+t.unit:("需下降 "+fmt(t.actual-t.target,2)+t.unit+(t.actual>0?"（"+fmt((t.actual-t.target)/t.actual*100,1)+"%）":""))}else{difference=t.pass?"高于下限 "+fmt(t.actual-t.target,2)+t.unit:("还差 "+fmt(t.target-t.actual,2)+t.unit)}}
-const max=t.known?Math.max(t.target*1.35,t.actual*1.2,.01):Math.max(t.target*1.35,.01);const band=Math.max(0,Math.min(100,t.target/max*100));const marker=t.known?Math.max(0,Math.min(99.5,t.actual/max*100)):null;const css=t.dir==="lower"?'left:0;width:'+band+'%':'left:'+band+'%;width:'+(100-band)+'%';
-return '<div class="rule"><div class="ruletop"><div><strong>'+esc(t.label)+'</strong><small>当前 '+valueText+(t.known?t.unit:"")+' ／ 标准 '+goalText+t.unit+'</small></div>'+statusBadge(!t.known?"wait":t.pass?"pass":"fail")+'</div><div class="track"><div class="targetband" style="'+css+'"></div>'+(marker!==null?'<div class="currentmark" style="left:'+marker+'%"></div>':'')+'</div><div class="tracklabels"><span>目标：'+goalText+t.unit+'</span><span class="'+(bad?"failText":"passText")+'">'+esc(difference)+'</span></div></div>'}
-function drawDetail(){const s=byId();if(!s){$("detail").innerHTML='<div class="empty"><h2>选择一只股票开始分析</h2>先搜索股票、选择类型、加入观察区，然后在左侧点击股票。</div>';return}
-const a=calc(s),v=s.inputs;let visible=FIELDS_BY_TYPE[s.type].slice();
-if(v.bank&&(s.type==="white"||s.type==="giant"))visible=["price","eps","shares","equity","roe","pbHistoric","asof","source"];
-if(s.type==="growth"&&v.lossMaking)visible=["price","shares","revenue","revGrowth","margin","years","growthMin","forwardLimit","asof","source"];
-const extra=s.type==="cigar"?'<p class="small muted">深入检查企业价值、现金流和NCAV：<a id="burryLink" href="burry.html">打开 Michael Burry 独立估值模型 ↗</a></p>':'';
-$("detail").innerHTML='<div class="overview"><div><h2>'+esc(s.name)+' <span class="muted">'+esc(s.ticker)+'</span></h2><p class="muted small">输入真实数据并即时对照标准；没有数据则显示待补数据。</p></div><div class="bigstatus '+(a.status==="pass"?"passText":a.status==="fail"?"failText":"waitText")+'">'+statusName(a.status)+'</div></div>'+
-'<div class="row"><label class="field" style="flex:1;min-width:150px"><span>股票分类（可调整）</span><select id="editType">'+Object.keys(TYPES).map(k=>'<option value="'+k+'" '+(s.type===k?"selected":"")+'>'+TYPES[k].name+'</option>').join("")+'</select></label><button id="deleteStock" class="btn" type="button">移除观察区</button></div>'+
-((s.type==="white"||s.type==="giant")?'<label class="qual"><input id="bank" type="checkbox" '+(v.bank?"checked":"")+'>银行股：用历史PB比较代替一般PE规则</label>':'')+
-(s.type==="growth"?'<label class="qual"><input id="lossMaking" type="checkbox" '+(v.lossMaking?"checked":"")+'>目前未盈利：改用PS＋未来3—5年PE估值</label>':'')+
-((s.type==="white"||s.type==="giant")?'<label class="qual"><input id="moat" type="checkbox" '+(v.moat?"checked":"")+'>已人工核实：护城河/经营质量仍稳固</label>':'')+
-'<h3 class="sectiontitle">① 股票数据与可编辑标准</h3><div class="datafields">'+visible.map(k=>field(k,v)).join("")+'</div><label class="field notearea"><span>个人研究记录 / 风险提醒</span><textarea data-k="memo" rows="2">'+esc(v.memo||"")+'</textarea></label>'+
-'<h3 class="sectiontitle">② 估值仪表盘</h3><div class="results">'+metric("市盈率PE",a.pe,"倍")+metric("市净率PB",a.pb,"倍")+metric("股息率",a.yieldPct,"%")+metric(s.type==="growth"&&v.lossMaking?"当前PS":"当前市值(亿美元)",s.type==="growth"&&v.lossMaking?a.ps:a.cap,s.type==="growth"&&v.lossMaking?"倍":"亿")+'</div>'+
-(s.type==="growth"&&v.lossMaking?'<p class="small muted" style="margin-top:8px">3年/5年预测：收入 '+fmt(a.projRevenue)+'亿美元；年利润 '+fmt(a.projProfit)+'亿美元；按当前市值的未来PE '+fmt(a.forwardPE)+'倍。</p>':"")+
-(s.type==="cigar"?'<div class="results" style="margin-top:9px">'+metric("EV/EBITDA",a.evRatio,"倍")+metric("FCF收益率",a.fcfYield,"%")+metric("NCAV(亿美元)",a.ncav,"亿")+metric("保守合理价 ($)",a.fair,"")+'</div><p class="small muted">EV估值价 $'+fmt(a.evFair)+'；FCF估值价 $'+fmt(a.fcfFair)+'；安全边际 '+fmt(a.mos)+'%。当多个估值可计算时取较低的正值。</p>':"")+
-'<h3 class="sectiontitle">③ '+esc(a.heading)+'</h3><p class="muted small">'+esc(a.special)+'</p><div class="rules">'+a.tests.map(ruleHTML).join("")+'</div>'+
-'<div class="summarybox"><strong class="'+(a.status==="pass"?"passText":a.status==="fail"?"failText":"waitText")+'">结论：'+statusName(a.status)+'</strong><p id="explain">'+(a.status==="wait"?"待补："+a.missing.map(q=>esc(q.label)).join("；"):a.status==="fail"?"未达到："+a.failed.map(q=>esc(q.label)).join("；"):"当前记录中的所有必选条件均达标。仍须核验数据真实性和定性风险。")+'</p><span class="hint">黄色竖线代表当前值；绿色区域表示满足标准。具体买卖仍需基本面核查。</span></div>'+extra;
-$("editType").addEventListener("change",e=>{s.type=e.target.value;const oldInputs=s.inputs||{};const newInputs=defaults(s.type);const resetKeys=new Set(["peLimit","roeLimit","growthMin","forwardLimit","marginRequired","floorPremium","evMultiple","fcfMultiple","pbHistoric","bank","lossMaking","moat"]);Object.keys(oldInputs).forEach(k=>{if(!resetKeys.has(k)&&k!=="growth")newInputs[k]=oldInputs[k]});s.inputs=newInputs;selectedType=s.type;persistAndRender()});
-$("deleteStock").addEventListener("click",()=>{items=items.filter(x=>x.id!==s.id);selectedId=items.find(x=>x.type===selectedType)?.id||null;persistAndRender()});
-["bank","lossMaking","moat"].forEach(id=>{const el=$(id);if(el)el.addEventListener("change",()=>{s.inputs[id]=el.checked;persistAndRender()})});
-$("detail").querySelectorAll("[data-k]").forEach(el=>el.addEventListener("input",()=>{s.inputs[el.dataset.k]=el.value;saveStore();drawCategories();drawList();drawDetailSoon()}));
-if(s.type==="cigar"){const link=$("burryLink");link.href="burry.html?name="+encodeURIComponent(s.name)+"&ticker="+encodeURIComponent(s.ticker)}
-}
-let drawing=false;
-function drawDetailSoon(){if(drawing)return;drawing=true;requestAnimationFrame(()=>{drawing=false;const focused=document.activeElement;const key=focused?.dataset?.k;const pos=focused?.selectionStart;drawDetail();if(key){const replacement=$("detail").querySelector('[data-k="'+key+'"]');if(replacement){replacement.focus({preventScroll:true});if(typeof pos==="number"&&replacement.type==="text")replacement.setSelectionRange(pos,pos)}}})}
-function persistAndRender(){saveStore();render()}
-function render(){drawCategories();drawList();drawDetail()}
-function suggestions(q){q=q.trim().toLocaleLowerCase();if(!q)return[];let name=universe.filter(x=>(x.name+" "+(x.alias||"")).toLowerCase().includes(q));if(name.length){name.sort((a,b)=>{const A=a.name.toLowerCase(),B=b.name.toLowerCase();return Number(B.startsWith(q))-Number(A.startsWith(q))});return name.slice(0,8)}
-return universe.filter(x=>x.ticker.toLowerCase().includes(q)).sort((a,b)=>Number(b.ticker.toLowerCase().startsWith(q))-Number(a.ticker.toLowerCase().startsWith(q))).slice(0,8)}
-function drawSuggestions(){const q=$("search").value,res=suggestions(q);$("candidates").style.display=res.length?"block":"none";$("candidates").innerHTML=res.map((s,i)=>'<button type="button" class="candidate" data-index="'+i+'"><span>'+esc(s.name)+(s.alias?' <small>('+esc(s.alias)+')</small>':"")+'</span><strong>'+esc(s.ticker)+'</strong></button>').join("");$("candidates").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>pick(res[Number(b.dataset.index)])))}
-function pick(s){picked=s;$("search").value=s.name;$("chosen").textContent="已选择 "+s.name+" / "+s.ticker+"，请选择类别后加入观察区";$("candidates").style.display="none"}
-$("search").addEventListener("input",()=>{picked=null;$("chosen").textContent="";drawSuggestions()});
-$("search").addEventListener("keydown",e=>{if(e.key==="Enter"){const res=suggestions($("search").value);if(res.length){e.preventDefault();pick(res[0])}}if(e.key==="Escape")$("candidates").style.display="none"});
-document.addEventListener("click",e=>{if(!e.target.closest(".searchbox"))$("candidates").style.display="none"});
-$("add").addEventListener("click",()=>{const q=$("search").value.trim();let obj=picked;if(!obj){obj=suggestions(q).find(x=>x.name.toLowerCase()===q.toLowerCase()||x.ticker.toLowerCase()===q.toLowerCase());if(!obj){$("chosen").textContent="请先从候选结果中点击选中一只股票。";return}}
-const type=$("newType").value,existing=items.find(s=>s.ticker.toUpperCase()===obj.ticker.toUpperCase());if(existing){existing.type=type;existing.name=obj.name;selectedId=existing.id;selectedType=type;$("chosen").textContent="该股已在观察区，已切换/更新所属分类。"}
-else{const id=obj.ticker.toUpperCase();const stock={id,ticker:id,name:obj.name,type,inputs:defaults(type),createdAt:new Date().toISOString()};items.unshift(stock);selectedId=id;selectedType=type;$("chosen").textContent="已加入 "+TYPES[type].name+" · "+obj.ticker}
-persistAndRender();});
-$("exportBtn").addEventListener("click",()=>{const blob=new Blob([JSON.stringify({format:"stockpool-v1",exportedAt:new Date().toISOString(),items},null,2)],{type:"application/json"});const u=URL.createObjectURL(blob);const a=document.createElement("a");a.href=u;a.download="us-stock-pool-backup.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)});
-$("importBtn").addEventListener("click",()=>$("importFile").click());
-$("importFile").addEventListener("change",async e=>{const f=e.target.files?.[0];if(!f)return;try{if(f.size>2_000_000)throw Error("文件过大");const x=JSON.parse(await f.text());if(x.format!=="stockpool-v1"||!Array.isArray(x.items))throw Error("文件格式不对");let count=0;for(const s of x.items.slice(0,300)){if(!s||!TYPES[s.type]||typeof s.ticker!=="string"||!s.ticker.trim()||typeof s.name!=="string")continue;const id=s.ticker.trim().toUpperCase().slice(0,20);if(items.some(x=>x.id===id))continue;items.push({id,ticker:id,name:s.name.slice(0,140),type:s.type,createdAt:s.createdAt,inputs:{...defaults(s.type),...(s.inputs||{})}});count++}persistAndRender();$("storeStatus").textContent="导入 "+count+" 只股票，已存在股票未覆盖。"}catch(err){$("storeStatus").textContent="导入失败："+err.message}e.target.value=""});
-async function initSymbols(){
- const aliasMap=new Map(STARTER.map(([name,ticker,alias])=>[ticker,{name,alias}]));
- const applyRows=(rows,source)=>{
-  const map=new Map();
-  rows.forEach(row=>{
-    if(!Array.isArray(row)||typeof row[0]!=="string"||typeof row[1]!=="string")return;
-    const ticker=row[1].trim().toUpperCase();
-    if(!ticker)return;
-    map.set(ticker,{name:row[0],ticker,alias:aliasMap.get(ticker)?.alias||"",exchange:row[2]||"",cik:row[3]||null});
-  });
-  STARTER.forEach(([name,ticker,alias])=>{
-    if(!map.has(ticker))map.set(ticker,{name,ticker,alias,exchange:""});
-  });
-  universe=Array.from(map.values());
-  $("universeStatus").textContent="已载入 "+universe.length.toLocaleString()+" 只股票候选 · "+source+"。仅为代码索引，不代表数据已经自动覆盖。";
- };
- let isComplete=false;
- try{
-   let response;
-   try{
-     response=await fetch("https://raw.githubusercontent.com/huashihao94-ux/us-market-workbench/main/symbols.json?v="+Date.now(),{cache:"no-store"});
-     if(!response.ok)throw Error("GitHub raw HTTP "+response.status);
-   }catch(error){
-     response=await fetch("symbols.json?v="+Date.now(),{cache:"no-store"});
-     if(!response.ok)throw Error("Site cache HTTP "+response.status);
-   }
-   const body=await response.json();
-   if(!Array.isArray(body.rows)||body.rows.length<20)throw Error("目录为空");
-   applyRows(body.rows,body.source||"本地公开目录");
-   isComplete=body.rows.length>=2000;
- }catch(err){
-   $("universeStatus").textContent="本地目录暂时不可用，正在尝试交易所代码镜像："+err.message;
- }
- if(isComplete)return;
- const base="https://raw.githubusercontent.com/e1001925/Improved-US-Stock-Symbols/main";
- const exchanges=["nasdaq","nyse","amex"];
- try{
-  const results=await Promise.all(exchanges.map(async exchange=>{
-    const res=await fetch(base+"/"+exchange+"/"+exchange+"_full_tickers.json",{cache:"no-store"});
-    if(!res.ok)throw Error(exchange+" HTTP "+res.status);
-    let data=await res.json();
-    if(!Array.isArray(data))data=data?.data?.rows||data?.rows||[];
-    return data.map(x=>[x.symbol||x.ticker||"",x.name||x.companyName||"",exchange]).filter(x=>x[0]&&x[1]);
-  }));
-  const rows=[];
-  for(const data of results)for(const [ticker,name,exchange] of data)rows.push([name,ticker,exchange]);
-  if(rows.length>2000)applyRows(rows,"公开交易所代码镜像（备用，代码可能存在滞后）");
-  else throw Error("返回记录太少");
- }catch(err){
-  $("universeStatus").textContent="当前本地候选 "+universe.length+" 只；备用目录也不可用（"+err.message+"）。名称搜索仍可继续使用本地记录。";
- }
-}
-items=readStore();const init=items.find(x=>x.type===selectedType);selectedId=init?.id||null;render();initSymbols();
-</script><script src="auto_data.js" defer></script><script src="classification_v2.js" defer></script></body></html>
+<script src="stock_pool_v3.js" defer></script>
+</body>
+</html>

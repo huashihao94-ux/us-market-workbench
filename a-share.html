@@ -33,7 +33,7 @@ function renderZones(){
 function renderList(){
  const arr=list.filter(x=>zone==="all"||bucket(x)===zone);
  $("zoneTitle").textContent=zone==="all"?"全部观察股":ZONES.find(x=>x[0]===zone)?.[1]||"观察股";$("total").textContent=arr.length+"只";
- $("stockList").innerHTML=arr.length?arr.map(x=>'<button class="item '+(selected===x.code?"on":"")+'" data-id="'+esc(x.code)+'"><b>'+esc(x.name)+'</b> <span class="small muted">'+esc(x.code)+'</span><div class="small muted">股息率 '+fmt(yieldOf(x))+'%　最近价 '+(numeric(x.manualPrice)||numeric(x.price)?fmt(numeric(x.manualPrice)||numeric(x.price))+"元":"—")+" · "+esc(quoteLabel(x))+'</div></button>').join(""):'<p class="muted small">暂无股票，或者股息率数据仍未填写。</p>';
+ $("stockList").innerHTML=arr.length?arr.map(x=>'<button class="item '+(selected===x.code?"on":"")+'" data-id="'+esc(x.code)+'"><b>'+esc(x.name)+'</b> <span class="small muted">'+esc(x.code)+'</span><div class="small muted">股息率 '+(yieldOf(x)===null?'待补分红数据':fmt(yieldOf(x))+'%')+'　最近价 '+(numeric(x.manualPrice)||numeric(x.price)?fmt(numeric(x.manualPrice)||numeric(x.price))+"元":"—")+" · "+esc(quoteLabel(x))+'</div></button>').join(""):'<p class="muted small">暂无股票，或者股息率数据仍未填写。</p>';
  document.querySelectorAll("#stockList .item").forEach(btn=>btn.addEventListener("click",()=>{selected=btn.dataset.id;render()}));
 }
 function detail(){

@@ -118,7 +118,7 @@ async function initSymbols(){
     if(!Array.isArray(row)||typeof row[0]!=="string"||typeof row[1]!=="string")return;
     const ticker=row[1].trim().toUpperCase();
     if(!ticker)return;
-    map.set(ticker,{name:row[0],ticker,alias:aliasMap.get(ticker)?.alias||"",exchange:row[2]||""});
+    map.set(ticker,{name:row[0],ticker,alias:aliasMap.get(ticker)?.alias||"",exchange:row[2]||"",cik:row[3]||null});
   });
   STARTER.forEach(([name,ticker,alias])=>{
     if(!map.has(ticker))map.set(ticker,{name,ticker,alias,exchange:""});

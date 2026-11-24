@@ -148,6 +148,64 @@ def latest_facts(cik):
             raise RuntimeError("SEC direct and public proxy unavailable: "+str(proxy_err)[:115])
     return j.get("facts") or {}
 
+def trailing_twelve_month_eps(facts):
+    """TTM diluted EPS from comparable SEC fiscal periods.
+
+    If latest full-year is the most recent reporting period, that fiscal-year
+    12-month EPS is the latest trailing-12-month period. When a newer 10-Q
+    exists, compute FY EPS + current fiscal YTD EPS - prior fiscal YTD EPS.
+    Do not stitch unrelated quarters or silently use stale annual EPS.
+    """
+    from datetime import timedelta
+    gaap=facts.get("us-gaap") or {}
+    candidates=[]
+    for rank,tag in enumerate(EPS):
+        node=gaap.get(tag) or {}
+        for item in node.get("units",{}).get(USD_SHARE,[]):
+            if item.get("form") not in ("10-K","10-K/A","10-Q","10-Q/A"):
+                continue
+            v=safe_num(item.get("val"))
+            start,end=item.get("start"),item.get("end")
+            if v is None or not start or not end:
+                continue
+            try:
+                d0=datetime.fromisoformat(start).date()
+                d1=datetime.fromisoformat(end).date()
+            except (TypeError,ValueError):
+                continue
+            if (d1-d0).days<65 or (d1-d0).days>391:
+                continue
+            candidates.append({"start":d0,"end":d1,"value":v,
+                               "form":item.get("form"),"filed":item.get("filed",""),
+                               "tag":tag,"rank":rank})
+    annual=[r for r in candidates if r["form"].startswith("10-K")
+            and 330 <= (r["end"]-r["start"]).days <= 390]
+    if not annual:
+        return None
+    fy=max(annual,key=lambda r:(r["end"],r["filed"],-r["rank"]))
+    newer=[r for r in candidates if r["form"].startswith("10-Q")
+           and r["end"]>fy["end"] and r["end"]<=fy["end"]+timedelta(days=320)
+           and abs((r["start"]-fy["end"]).days)<=12]
+    if not newer:
+        return {"value":round(fy["value"],5),"end":str(fy["end"]),
+                "method":"最近12个月完整财政年度EPS（10-K）",
+                "periods":[str(fy["start"]),str(fy["end"])],
+                "tag":fy["tag"]}
+    ytd=max(newer,key=lambda r:(r["end"],r["filed"],-r["rank"]))
+    duration=(ytd["end"]-ytd["start"]).days
+    older=[r for r in candidates if r["form"].startswith("10-Q")
+           and r["end"]<=fy["end"] and abs((r["start"]-fy["start"]).days)<=12
+           and abs((r["end"]-r["start"]).days-duration)<=14]
+    # Keep matching fiscal quarter rather than mixing FY, 3-month and YTD.
+    if not older:
+        return None
+    prior=max(older,key=lambda r:(r["end"],r["filed"],-r["rank"]))
+    ttm=fy["value"]+ytd["value"]-prior["value"]
+    return {"value":round(ttm,5),"end":str(ytd["end"]),
+            "method":"FY+当前YTD−上年同段YTD（稀释EPS近似；回购/拆股可能影响）",
+            "periods":[str(fy["end"]),str(ytd["end"]),str(prior["end"])],
+            "tag":fy["tag"]}
+
 def extract_financials(cik):
     facts = latest_facts(cik)
     out, detail = {}, {}
@@ -164,6 +222,14 @@ def extract_financials(cik):
     for name in ("eps", "dividend"):
         if name in found:
             out[name] = round(found[name]["value"], 5)
+    ttm_eps=trailing_twelve_month_eps(facts)
+    if ttm_eps:
+        out["ttmEPS"]=ttm_eps["value"]
+        detail["ttmEPS"]={"end":ttm_eps["end"],
+                           "method":ttm_eps["method"],
+                           "periods":ttm_eps["periods"],
+                           "tag":ttm_eps["tag"]}
+
     if "shares" in found and found["shares"]["value"] > 0:
         out["shares"] = round(found["shares"]["value"]/100_000_000, 6)
     else:
@@ -350,6 +416,9 @@ def main():
         except Exception as exc:
             rec["priceError"]=str(exc)[:170]
             errors.append(f"{ticker} price: {str(exc)[:90]}")
+        if safe_num(rec.get("price")) and safe_num(rec.get("shares")) and rec["price"]>0 and rec["shares"]>0:
+            rec["marketCap"]=round(rec["price"]*rec["shares"],4) # 亿美元
+            rec["marketCapNote"]="按最近成功抓取的股价乘SEC披露股数估算，单位亿美元"
         return ticker,rec
     with ThreadPoolExecutor(max_workers=3) as pool:
         futures=[pool.submit(work,t) for t in tickers]
@@ -361,7 +430,7 @@ def main():
          "mode":args.mode,"tracked":len(tickers),"stocks":results,
          "status":"ok" if not errors else "partial" if any(v.get("price") or v.get("financialMeta") for v in results.values()) else "unavailable",
          "errors":errors[:50],
-         "notes":"价格是最新成功抓取的日线收盘价，可能延迟；财报数据为SEC历史财报，不是实时/一致TTM；字段无值时不要假设为零。"}
+         "notes":"价格是最新成功抓取的日线收盘价，可能延迟；eps为年度EPS；ttmEPS为独立计算的最新可得12个月EPS；marketCap单位亿美元；字段无值时不要假设为零。"}
     OUT.write_text(json.dumps(out,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
     countprice=sum(1 for t in tickers if results.get(t,{}).get("price"))
     countfin=sum(1 for t in tickers if results.get(t,{}).get("financialMeta"))

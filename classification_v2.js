@@ -150,6 +150,61 @@ function estimateTTM(facts){
   .sort((a,b)=>b.end.localeCompare(a.end))[0];
  return prior?{value:fy.val+latest.val-prior.val,end:latest.end,source:"FY+当前YTD−上年YTD"}:null;
 }
+function secFinancialSummary(facts){
+  const sources={};
+  const pick=(tags,unit,kind)=>{
+    let chosen=null;
+    for(const tag of tags){
+      const list=facts?.["us-gaap"]?.[tag]?.units?.[unit]||[];
+      for(const record of list){
+        if(!record.end||!["10-K","10-K/A","10-Q","10-Q/A"].includes(record.form))continue;
+        const v=getNumber(record.val);
+        if(v===null)continue;
+        const days=record.start?(Date.parse(record.end)-Date.parse(record.start))/86400000:null;
+        const yes=kind==="annual"?record.form.startsWith("10-K")&&days>=330&&days<=390:
+          kind==="quarter"?record.form.startsWith("10-Q")&&days>=65&&days<=115:
+          kind==="instant"&&!record.start;
+        if(!yes)continue;
+        const item={value:v,end:record.end,filed:record.filed||"",tag};
+        if(!chosen||item.end>chosen.end||(item.end===chosen.end&&item.filed>chosen.filed))chosen=item;
+      }
+      if(chosen)break;
+    }
+    return chosen;
+  };
+  const annual={
+    eps:pick(["EarningsPerShareDiluted","EarningsPerShareBasic"],"USD/shares","annual"),
+    revenue:pick(["RevenueFromContractWithCustomerExcludingAssessedTax","RevenueFromContractWithCustomerIncludingAssessedTax","Revenues","SalesRevenueNet"],"USD","annual"),
+    netIncome:pick(["NetIncomeLoss","ProfitLoss"],"USD","annual"),
+    cfo:pick(["NetCashProvidedByUsedInOperatingActivities"],"USD","annual"),
+    capex:pick(["PaymentsToAcquirePropertyPlantAndEquipment"],"USD","annual"),
+    dividend:pick(["CommonStockDividendsPerShareDeclared"],"USD/shares","annual")
+  };
+  const instant={
+    equity:pick(["StockholdersEquity","StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"],"USD","instant"),
+    cash:pick(["CashAndCashEquivalentsAtCarryingValue"],"USD","instant"),
+    liabilities:pick(["Liabilities"],"USD","instant")
+  };
+  const quarter={
+    quarterlyRevenue:pick(["RevenueFromContractWithCustomerExcludingAssessedTax","RevenueFromContractWithCustomerIncludingAssessedTax","Revenues"],"USD","quarter"),
+    quarterlyNetIncome:pick(["NetIncomeLoss","ProfitLoss"],"USD","quarter")
+  };
+  const out={};
+  for(const group of [annual,instant,quarter]){
+    for(const [key,item] of Object.entries(group)){
+      if(!item)continue;
+      out[key]=key==="eps"||key==="dividend"?item.value:item.value/1e8;
+      sources[key]={end:item.end,filed:item.filed,tag:item.tag};
+    }
+  }
+  if(annual.cfo&&annual.capex){
+    out.fcf=(annual.cfo.value-Math.abs(annual.capex.value))/1e8;
+    sources.fcf={end:annual.cfo.end,filed:annual.cfo.filed};
+  }
+  out.financialMeta={source:"SEC XBRL companyfacts（选股时查询，基于公开财报）",
+                     updatedAt:new Date().toISOString(),fields:sources};
+  return out;
+}
 async function queryOnDemand(s){
  const cached=candidateCached(s.ticker);
  let record=cached?{...cached}:{ticker:s.ticker,name:s.name};
@@ -176,6 +231,7 @@ async function queryOnDemand(s){
     const response=await fetch(url);
     if(!response.ok)throw Error("HTTP "+response.status);
     const j=await response.json(),facts=j.facts||{};
+    Object.assign(record,secFinancialSummary(facts));
     if(!(record.shares>0))record.shares=chooseShares(facts);
     if(!record.ttmEPS){const x=estimateTTM(facts);if(x){record.ttmEPS=x.value;record.ttmDate=x.end;}}
    }catch{}
@@ -214,7 +270,7 @@ addBtn.addEventListener("click",()=>{
  if(candidateInfo.cap!==null&&candidateInfo.cap>LIMIT)s.type="giant";
  const d=candidateInfo.record||{};
  s.inputs=s.inputs||defaults(s.type);
- for(const key of ["price","shares","ttmEPS"]){
+ for(const key of ["price","shares","ttmEPS","eps","revenue","roe","fcf","equity","cash","liabilities","dividend"]){
    if(getNumber(d[key])!==null&&(!s.inputs[key]||s.autoFields?.includes(key))){
      s.inputs[key]=String(d[key]);s.autoFields=Array.from(new Set([...(s.autoFields||[]),key]));
    }
@@ -250,6 +306,8 @@ drawDetail=function(){
    metric("年度EPS",record.eps,"美元",fdate("eps"))+
    metric("年度营业收入",record.revenue,"亿美元",fdate("revenue"))+
    metric("年度净利润",record.netIncome,"亿美元",fdate("netIncome"))+
+   metric("最新单季营业收入",record.quarterlyRevenue,"亿美元",fdate("quarterlyRevenue"))+
+   metric("最新单季净利润",record.quarterlyNetIncome,"亿美元",fdate("quarterlyNetIncome"))+
    metric("年度自由现金流",record.fcf,"亿美元",fdate("fcf"))+
    metric("期末净资产",record.equity,"亿美元",fdate("equity"))+
    metric("期末现金",record.cash,"亿美元",fdate("cash"))+

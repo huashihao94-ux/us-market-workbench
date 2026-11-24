@@ -403,6 +403,7 @@ async function loadOnDemand(ticker,force=false){
    })());
   }
   await Promise.allSettled(tasks);
+  if(fresh.priceDate&&old.priceDate&&fresh.priceDate<old.priceDate){delete fresh.price;delete fresh.priceDate;delete fresh.priceSource;}
   const combined=mergeRecords(old,fresh);
   if(got){stocks.set(ticker,combined);}
   else if(!exists)stocks.set(ticker,{...old,name:sym.name||ticker,priceError:errors.join("；")});
@@ -459,5 +460,22 @@ $("importFile").addEventListener("change",async e=>{
  e.target.value="";
 });
 $("newType").addEventListener("change",showSelection);
+document.addEventListener("market:refresh",async event=>{
+ const snapshot=event.detail?.us;
+ if(snapshot&&snapshot.stocks){
+  cacheDate=snapshot.updatedAt||cacheDate;
+  for(const [ticker,rec] of Object.entries(snapshot.stocks)){
+   const old=stocks.get(ticker.toUpperCase());
+   const oldDay=old?.priceDate||"";
+   if(!old||!oldDay||String(rec.priceDate||"")>=oldDay)stocks.set(ticker.toUpperCase(),mergeRecords(old,rec));
+   else stocks.set(ticker.toUpperCase(),mergeRecords(rec,old));
+  }
+  cacheCount=stocks.size;
+  $("dataStatus").textContent="已重新读取美股公开缓存："+cacheCount+"只 · 数据文件生成："+cacheDate;
+  render();if(picked)showSelection();
+ }else await init();
+ const active=selected||picked?.ticker;
+ if(active)await loadOnDemand(active,true);
+});
 init();
 })();

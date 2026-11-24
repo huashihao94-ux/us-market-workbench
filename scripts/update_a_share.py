@@ -56,6 +56,25 @@ def fetch_eastmoney():
     if len(all_rows)<2500:raise ValueError(f"Eastmoney returned only {len(all_rows)} stocks (expected >2500)")
     return list(sorted(all_rows.values(),key=lambda x:x["code"])), "Eastmoney public clist (prices may be intraday/delayed)"
 
+def github_company_fallback():
+    """Community company names only; price date is unverified, so no price."""
+    url="https://raw.githubusercontent.com/guidebee/china-stock-data/main/data/company/companies.json"
+    r=requests.get(url,headers=HEADERS,timeout=60)
+    r.raise_for_status()
+    data=r.json()
+    rows={}
+    for x in data:
+        if not isinstance(x,dict):continue
+        code=str(x.get("code","")).strip()
+        name=str(x.get("name","")).strip()
+        typ=str(x.get("stock_type",""))
+        if len(code)!=6 or not code.isdigit() or not name or typ in ("sh_b","sz_b"):continue
+        exchange="BJ" if typ=="hs_bjs" else "SH" if typ in ("sh_a","kcb") else "SZ"
+        rows[code]={"code":code,"name":name,"exchange":exchange,
+                    "price":None,"priceDate":None}
+    if len(rows)<2000:raise ValueError(f"Community names only {len(rows)} rows")
+    return list(sorted(rows.values(),key=lambda x:x["code"]))
+
 def main():
     prior=json.loads(FILE.read_text("utf-8")) if FILE.exists() else {"rows":[]}
     try:
@@ -64,10 +83,23 @@ def main():
         FILE.write_text(json.dumps(out,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
         print("Saved",len(rows),"A shares")
     except Exception as exc:
-        print("WARNING: A share data refresh failed:",repr(exc),flush=True)
-        if not prior.get("rows"):raise
-        # Preserve old names and old price dates; don't mark cache newly updated.
-        print("Preserving",len(prior["rows"]),"old records",flush=True)
+        print("WARNING: A share primary data refresh failed:",repr(exc),flush=True)
+        try:
+            rows=github_company_fallback()
+            old={x["code"]:x for x in prior.get("rows",[])}
+            for row in rows:
+                earlier=old.get(row["code"])
+                if earlier and validprice(earlier.get("price")):
+                    row["price"]=earlier["price"]
+                    row["priceDate"]=earlier.get("priceDate")
+            FILE.write_text(json.dumps({"updatedAt":datetime.now(timezone.utc).isoformat(),
+              "source":"guidebee/china-stock-data community company-name index; prices only from existing dated cache",
+              "status":"names_only","rows":rows},ensure_ascii=False,separators=(",",":")),encoding="utf-8")
+            print("Saved name-only fallback",len(rows),"A shares",flush=True)
+        except Exception as fail:
+            print("WARNING: community fallback unavailable",repr(fail),flush=True)
+            if not prior.get("rows"):raise
+            print("Preserving",len(prior["rows"]),"old records",flush=True)
 
 if __name__=="__main__":
     main()

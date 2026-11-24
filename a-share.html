@@ -16,6 +16,8 @@
 "use strict";
 const $=x=>document.getElementById(x),esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const KEY="ashare-online-dividend-v1";
+function quoteLabel(x){const t=String(x?.quoteTime||"");return /^\d{14}$/.test(t)?t.slice(0,4)+"-"+t.slice(4,6)+"-"+t.slice(6,8)+" "+t.slice(8,10)+":"+t.slice(10,12)+":"+t.slice(12,14)+"（北京时间；行情快照）":(x?.priceDate?x.priceDate+"（最近有记录的行情）":"报价日期未知")}
+
 let list=[],catalog=[],selected=null,choice=null,zone="all";const threshold=[6,5,4];
 function getStore(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch{return {}}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify({list,threshold}));$("storeStatus").textContent="此设备本地保存成功 · "+new Date().toLocaleTimeString("zh-CN")}catch(e){$("storeStatus").textContent="无法保存："+e.message}}
@@ -31,7 +33,7 @@ function renderZones(){
 function renderList(){
  const arr=list.filter(x=>zone==="all"||bucket(x)===zone);
  $("zoneTitle").textContent=zone==="all"?"全部观察股":ZONES.find(x=>x[0]===zone)?.[1]||"观察股";$("total").textContent=arr.length+"只";
- $("stockList").innerHTML=arr.length?arr.map(x=>'<button class="item '+(selected===x.code?"on":"")+'" data-id="'+esc(x.code)+'"><b>'+esc(x.name)+'</b> <span class="small muted">'+esc(x.code)+'</span><div class="small muted">股息率 '+fmt(yieldOf(x))+'%　最近价 '+(numeric(x.manualPrice)||numeric(x.price)?fmt(numeric(x.manualPrice)||numeric(x.price))+"元":"—")+'</div></button>').join(""):'<p class="muted small">暂无股票，或者股息率数据仍未填写。</p>';
+ $("stockList").innerHTML=arr.length?arr.map(x=>'<button class="item '+(selected===x.code?"on":"")+'" data-id="'+esc(x.code)+'"><b>'+esc(x.name)+'</b> <span class="small muted">'+esc(x.code)+'</span><div class="small muted">股息率 '+fmt(yieldOf(x))+'%　最近价 '+(numeric(x.manualPrice)||numeric(x.price)?fmt(numeric(x.manualPrice)||numeric(x.price))+"元":"—")+" · "+esc(quoteLabel(x))+'</div></button>').join(""):'<p class="muted small">暂无股票，或者股息率数据仍未填写。</p>';
  document.querySelectorAll("#stockList .item").forEach(btn=>btn.addEventListener("click",()=>{selected=btn.dataset.id;render()}));
 }
 function detail(){
@@ -49,7 +51,7 @@ function detail(){
  '<label class="field"><span>本财年每10股现金派息合计（元）</span><input id="dividend10" type="number" min="0" step=".01" value="'+esc(item.dividend10??"")+'"></label>'+
  '<label class="field"><span>对应财年/报告期</span><input id="fiscal" type="text" value="'+esc(item.fiscal||"")+'" placeholder="例如2025年度"></label>'+
  '<label class="field"><span>数据来源或备注</span><input id="source" type="text" value="'+esc(item.source||"")+'" placeholder="财报公告、交易软件等"></label></div>'+
- '<p class="small muted">行情日期：'+esc(item.priceDate||"未获取")+(item.quoteTime?"（北京时间 "+esc(item.quoteTime.slice(8,10)+":"+item.quoteTime.slice(10,12))+ "）":"")+'；若数据源暂不可用，请核对交易软件。现金分红数值需依据年报/中报/公告核实。</p>'+
+ '<p class="small muted">行情时点：'+esc(quoteLabel(item))+'；若数据源暂不可用，请核对交易软件。现金分红数值需依据年报/中报/公告核实，报价可能是盘中而非收盘。</p>'+
  '<div class="tools"><button class="btn" id="remove">移出观察区</button></div>';
  for(const f of ["manualPrice","dividend10","fiscal","source"])$(f).addEventListener("change",e=>{item[f]=e.target.value;save();render()});
  $("remove").addEventListener("click",()=>{list=list.filter(x=>x.code!==item.code);selected=list[0]?.code||null;save();render()});
@@ -67,7 +69,7 @@ function drawSearch(){
  $("matches").innerHTML=arr.map(x=>'<button data-code="'+esc(x.code)+'"><b>'+esc(x.name)+'</b><small>'+esc(x.code)+' · '+esc(x.exchange)+'</small></button>').join("");
  $("matches").querySelectorAll("button").forEach(el=>el.addEventListener("click",()=>{
  choice=catalog.find(x=>x.code===el.dataset.code);$("q").value=choice.name;$("matches").hidden=true;
- $("selectMessage").textContent="已选择："+choice.name+"（"+choice.code+"）"+(numeric(choice.price)>0?"，最近价 "+fmt(choice.price)+"元":"，股价尚未获取");
+ $("selectMessage").textContent="已选择："+choice.name+"（"+choice.code+"）"+(numeric(choice.price)>0?"，最近价 "+fmt(choice.price)+"元，"+quoteLabel(choice):"，股价尚未获取");
  }));
 }
 $("q").addEventListener("input",()=>{choice=null;drawSearch()});
@@ -78,6 +80,31 @@ $("add").addEventListener("click",()=>{
  if(!existing){list.unshift({...choice,dividend10:"",fiscal:"",source:""});}
  selected=choice.code;zone="all";save();render();
  $("selectMessage").textContent="已加入："+choice.name+" "+choice.code;
+});
+async function refreshCurrentStock(){
+ const item=list.find(x=>x.code===selected);
+ if(!item)return;
+ const prefix=item.exchange==="SH"?"sh":item.exchange==="BJ"?"bj":"sz";
+ const url="https://proxy.cors.dev/https://qt.gtimg.cn/q="+prefix+item.code;
+ try{
+   const response=await fetch(url,{cache:"no-store"});
+   if(!response.ok)throw Error("HTTP "+response.status);
+   const content=await response.text();
+   const matched=content.match(/v_(?:sh|sz|bj)\d{6}="([^"]*)"/);
+   if(!matched)return;
+   const cols=matched[1].split("~");
+   const price=numeric(cols[3]),stamp=String(cols[30]||"");
+   if(!(price>0)||!/^\d{14}$/.test(stamp))return;
+   if(item.code!==selected)return;
+   item.price=price;
+   item.priceDate=stamp.slice(0,4)+"-"+stamp.slice(4,6)+"-"+stamp.slice(6,8);
+   item.quoteTime=stamp;
+   item.priceSource="腾讯公开行情（选中股票时查询，可能延迟）";
+   save();render();
+ }catch{ /* No fake quote; retain cached price with its old timestamp. */ }
+}
+$("stockList").addEventListener("click",e=>{
+ if(e.target.closest(".item"))refreshCurrentStock();
 });
 $("export").addEventListener("click",()=>{
  const blob=new Blob([JSON.stringify({format:"a-share-dividend-watch-v1",list,threshold:[6,5,4]},null,2)],{type:"application/json"});
@@ -111,9 +138,9 @@ $("file").addEventListener("change",async event=>{
   const payload=await response.json();
   if(!Array.isArray(payload.rows))throw Error("股票目录格式不正确");
   catalog=payload.rows.filter(x=>x&&x.code&&x.name);
-  let count=0;for(const item of list){const row=catalog.find(x=>x.code===item.code);if(!row)continue;if(numeric(row.price)>0){item.price=row.price;item.priceDate=row.priceDate;item.quoteTime=row.quoteTime||"";count++;}}
+  let count=0;for(const item of list){const row=catalog.find(x=>x.code===item.code);if(!row)continue;if(numeric(row.price)>0){item.price=row.price;item.priceDate=row.priceDate;item.quoteTime=row.quoteTime||"";item.priceSource=row.priceSource||payload.source||"";count++;}}
   if(count)save();
-  $("dataMessage").textContent="可搜索 "+catalog.length+" 只A股 · 数据日期："+(payload.updatedAt||"首次初始化中")+" · 价格覆盖："+catalog.filter(x=>numeric(x.price)>0).length+"只。数据源："+(payload.source||"未注明");
+  $("dataMessage").textContent="可搜索 "+catalog.length+" 只A股 · 文件生成："+(payload.updatedAt||"首次初始化中")+" · 价格覆盖："+catalog.filter(x=>numeric(x.price)>0).length+"只。数据源："+(payload.source||"未注明");
  }catch(e){$("dataMessage").textContent="目录加载失败："+e.message+"。已保存的股票仍可手动编辑。"}
  render();
 })();

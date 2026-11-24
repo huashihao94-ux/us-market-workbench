@@ -256,13 +256,8 @@ function drawResults(){
    (d?.priceDate?" · "+esc(d.priceDate):"")+'</small></button>';
  }).join("");
  $("suggestions").querySelectorAll("button").forEach(btn=>btn.addEventListener("click",()=>{
-  const target=universe.get(btn.dataset.ticker);if(target)choose(target);
+  const target=universe.get(btn.dataset.ticker);if(target)chooseSymbol(target);
  }));
-}
-function choose(ticker){
- picked=ticker;$("query").value=ticker.name;$("suggestions").hidden=true;
- $("selection").textContent="已选择 "+ticker.name+"（"+ticker.ticker+"），正在核对市值及数据…";
- $("addStock").disabled=true;showSelection();
 }
 function showSelection(){
  if(!picked)return;
@@ -423,7 +418,7 @@ function chooseSymbol(t){
  $("addStock").disabled=true;
  $("selection").textContent="正在加载 "+t.ticker+"…";
  showSelection();
- loadOnDemand(t.ticker).finally(()=>{if(picked?.ticker===t.ticker){showSelection();$("addStock").disabled=false;}});
+ if(!stocks.get(t.ticker)?.financialMeta||!stocks.get(t.ticker)?.price){$("addStock").disabled=true;loadOnDemand(t.ticker).finally(()=>{if(picked?.ticker===t.ticker){showSelection();$("addStock").disabled=false;}});}
 }
 $("query").addEventListener("input",()=>{picked=null;drawResults();$("selection").textContent="请从候选结果中点击股票。"});
 $("query").addEventListener("keydown",e=>{

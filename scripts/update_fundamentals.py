@@ -291,9 +291,14 @@ def yahoo_prices(ticker):
     errors=[]
     for host in ("query1.finance.yahoo.com","query2.finance.yahoo.com","proxy.cors.dev"):
         try:
-            url=(f"https://proxy.cors.dev/https://query1.finance.yahoo.com/v8/finance/chart/{t}?range=1y&interval=1d"
+            # Fixed chart URLs can be held in an outdated CDN or public-proxy
+            # cache even after a new NYSE close is published. The unique query
+            # parameter is harmless to Yahoo and prevents reusing yesterday's
+            # exact request URL. Recheck the returned quote dates regardless.
+            bust=f"&nocache={int(time.time()//300)}"
+            url=(f"https://proxy.cors.dev/https://query1.finance.yahoo.com/v8/finance/chart/{t}?range=1y&interval=1d"+bust
                  if host=="proxy.cors.dev" else
-                 f"https://{host}/v8/finance/chart/{t}?range=1y&interval=1d")
+                 f"https://{host}/v8/finance/chart/{t}?range=1y&interval=1d"+bust)
             j=get_json(url,PRICE_HEADERS,timeout=17 if host=="proxy.cors.dev" else 12,attempts=1)
             chart=j["chart"]
             result=(chart.get("result") or [None])[0]

@@ -60,5 +60,5 @@ $("fresh").textContent=delayed?"行情可能滞后："+(newest||"未知"):j.stat
 $("fresh").style.color=delayed?"#ffd08d":"";
 if(Object.keys(j.indices||{}).length===0)status("行情尚未生成或数据供应商不可用。请在 GitHub Actions 中运行 Update index data，然后刷新。");else{const dates=Object.values(j.indices).map(v=>v.asof);status("已读取行情文件 · 指数真实收盘日期："+dates.join(" / ")+"。点击刷新不会直接向交易所拉取最新行情。"+(j.errors?.length?" 部分数据采用旧缓存；请检查Actions日志。":""));}redrawSummary();drawCheckboxes();redrawCharts()}catch(e){status("无法读取行情数据："+e.message+"。请确认 Pages 已启用、Actions 已完成及 data.json 已生成。");$("fresh").textContent="未连接数据"}finally{btn.disabled=false;btn.textContent="↻ 刷新数据"}}
 $("refresh").addEventListener("click",reload);document.addEventListener("market:refresh",reload);reload();
-</script><script src="refresh_center.js" defer></script>
+</script><script src="refresh_center.js?v=20261125a" defer></script>
 </body></html>

@@ -16,6 +16,10 @@ const e=s=>String(s??"");
 const yyyy=s=>e(s).slice(0,10)||"无日期";
 const maxdate=xs=>xs.filter(x=>typeof x==="string"&&x.length>=10).map(x=>x.slice(0,10)).sort().at(-1)||"无日期";
 const localTime=t=>{if(!t)return "未生成";const d=new Date(t);return Number.isFinite(d.getTime())?d.toLocaleString("zh-CN",{timeZone:"Asia/Shanghai",hour12:false}):e(t);};
+const snapshotKey="stockPoolRefreshSnapshotsV1";
+let earlier={};try{earlier=JSON.parse(sessionStorage.getItem(snapshotKey)||"{}")}catch(_){/* private session */}
+const current={};
+function newOrSame(name,stamp){current[name]=e(stamp);return !earlier[name]?"首次检查":earlier[name]===current[name]?"与上次检查相同（未发布新文件）":"比上次检查有新发布的数据";}
 async function file(name){
  let error=null;
  for(const url of [ROOT+name+"?fresh="+Date.now(),name+"?fresh="+Date.now()]){
@@ -38,16 +42,25 @@ async function refreshAll(){
  $("refreshHelp").textContent="检查发起时间："+new Date().toLocaleString("zh-CN",{timeZone:"Asia/Shanghai",hour12:false})+"（北京时间）。正在从公开仓库读取最新文件……";
  set("refreshIndex","美股指数",["读取中…"]);set("refreshUs","美股个股财务",["读取中…"]);set("refreshA","A股股票行情",["读取中…"]);
  const tasks=[
-  file("data.json").then(j=>{const idx=j.indices||{};set("refreshIndex","美股指数",["标普500收盘日："+yyyy(idx.sp500?.asof)+"；纳斯达克："+yyyy(idx.nasdaq?.asof),"数据生成："+localTime(j.updatedAt),"仅展示最近已取得的交易日收盘数据"]);return j;})
+  file("data.json").then(j=>{const idx=j.indices||{};set("refreshIndex","美股指数",["标普500收盘日："+yyyy(idx.sp500?.asof)+"；纳斯达克："+yyyy(idx.nasdaq?.asof),"数据生成："+localTime(j.updatedAt),newOrSame("index",j.updatedAt),"来源：Cboe / Nasdaq 日线及备用源；不是盘中报价"]);return j;})
    .catch(x=>{set("refreshIndex","美股指数",["读取失败："+String(x.message||x)],true);return null;}),
-  file("fundamentals.json").then(j=>{const rows=Object.values(j.stocks||{}),withReport=rows.filter(x=>x.financialMeta).length;set("refreshUs","美股个股财务",["自动跟踪："+rows.length+"只；有财报："+withReport+"只","最近已取得美股收盘日："+maxdate(rows.map(x=>x.priceDate)),"数据生成："+localTime(j.updatedAt)]);return j;})
+  file("fundamentals.json").then(j=>{const rows=Object.values(j.stocks||{}),withReport=rows.filter(x=>x.financialMeta).length;set("refreshUs","美股个股财务",["自动跟踪："+rows.length+"只；有财报："+withReport+"只","最近已取得美股收盘日："+maxdate(rows.map(x=>x.priceDate)),"数据生成："+localTime(j.updatedAt),newOrSame("us",j.updatedAt),"来源：SEC EDGAR财报＋Yahoo/Stooq日线；价格源为非官方公开接口"] );return j;})
    .catch(x=>{set("refreshUs","美股个股财务",["读取失败："+String(x.message||x)],true);return null;}),
-  file("a_share_data.json").then(j=>{const rows=j.rows||[],quoted=rows.filter(x=>typeof x.price==="number"&&x.price>0);set("refreshA","A股股票行情",["名称："+rows.length+"只；有价格："+quoted.length+"只","最近报价日期："+maxdate(quoted.map(x=>x.priceDate)),"数据生成："+localTime(j.updatedAt)+"；盘中/收盘以每股时点为准"]);return j;})
+  file("a_share_data.json").then(j=>{const rows=j.rows||[],quoted=rows.filter(x=>typeof x.price==="number"&&x.price>0);set("refreshA","A股股票行情",["名称："+rows.length+"只；有价格："+quoted.length+"只","最近报价日期："+maxdate(quoted.map(x=>x.priceDate)),"数据生成："+localTime(j.updatedAt)+"；盘中/收盘以每股时点为准",newOrSame("a",j.updatedAt),"来源：腾讯／东方财富公开行情；个别股票报价可能滞后"]);return j;})
    .catch(x=>{set("refreshA","A股股票行情",["读取失败："+String(x.message||x)],true);return null;})
  ];
  const all=await Promise.all(tasks);
+ try{sessionStorage.setItem(snapshotKey,JSON.stringify({...earlier,...current}))}catch(_){/* private session */}
+ const indexClose=maxdate([all[0]?.indices?.sp500?.asof,all[0]?.indices?.nasdaq?.asof]);
+ const usClose=maxdate(Object.values(all[1]?.stocks||{}).map(x=>x.priceDate));
+ let lagNotice="";
+ if(all[0]&&all[1]&&indexClose!=="无日期"&&usClose!=="无日期"&&usClose<indexClose){
+  const node=$("refreshUs");node.querySelector("strong").textContent="⚠ 美股个股财务（已读取，行情可能滞后）";
+  const detail=document.createElement("span");detail.textContent="注意：个股最近收盘日 "+usClose+"，落后指数收盘日 "+indexClose+"；数据尚未更新到同一交易日。";node.appendChild(detail);
+  lagNotice="美股个股行情日期落后指数；请以显示的行情日为准。";
+ }
  document.dispatchEvent(new CustomEvent("market:refresh",{detail:{index:all[0],us:all[1],a:all[2],checkedAt:new Date().toISOString()}}));
- $("refreshHelp").textContent="检查完成："+new Date().toLocaleString("zh-CN",{timeZone:"Asia/Shanghai",hour12:false})+"。请以每项行情的交易日判断新旧，而非“刷新成功”提示。当前页面正在更新可得的个股数据。";
+ $("refreshHelp").textContent="检查完成："+new Date().toLocaleString("zh-CN",{timeZone:"Asia/Shanghai",hour12:false})+"。"+(lagNotice||"请核对各栏的行情日期及“与上次检查相同”提示。")+" 已读取数据并通知当前页面更新；此操作不能直接启动后台采集。";
  btn.disabled=false;btn.textContent="↻ 一键刷新三类数据";running=false;
 }
 btn.addEventListener("click",refreshAll);

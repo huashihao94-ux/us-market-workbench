@@ -18,7 +18,7 @@ on:
       - 'tracked_symbols.json'
       - '.github/workflows/update_fundamentals.yml'
   schedule:
-    - cron: '38 3 * * 2-6'
+    - cron: '35 1,3 * * 2-6' # 美股收盘后于北京时间09:35、11:35补抓日线报价
     - cron: '25 5 * * 0,2-6' # SEC财报每日更新（美国交易日次日及周日补偿）
 
 permissions:
@@ -51,7 +51,7 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           MODE=full
-          if [ "$EVENT" = "schedule" ] && [ "$SCHEDULE" = "38 3 * * 2-6" ]; then MODE=prices; fi
+          if [ "$EVENT" = "schedule" ] && [ "$SCHEDULE" = "35 1,3 * * 2-6" ]; then MODE=prices; fi
           if [ "$EVENT" = "workflow_dispatch" ] && [ "$DISPATCH_MODE" = "prices" ]; then MODE=prices; fi
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
       - name: Refresh official SEC listed-company names and CIKs

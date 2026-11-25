@@ -6,7 +6,7 @@ Keep prior cache if all data sources fail. Currency of price = CNY.
 """
 import json
 import time
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta
 from pathlib import Path
 import requests
 
@@ -29,7 +29,7 @@ def fetch_eastmoney():
         params={"pn":pn,"pz":100,"po":1,"np":1,"ut":"bd1d9ddb04089700cf9c27f6f7426281",
                 "fltt":2,"invt":2,"fid":"f3",
                 "fs":"m:0+t:6,m:0+t:80,m:0+t:81,m:1+t:2,m:1+t:23",
-                "fields":"f12,f13,f14,f2"}
+                "fields":"f12,f13,f14,f2,f86"}
         r=requests.get(URL,params=params,headers=HEADERS,timeout=25)
         r.raise_for_status()
         data=(r.json().get("data") or {})
@@ -44,9 +44,17 @@ def fetch_eastmoney():
             market=str(x.get("f13") or "")
             exchange="SH" if market=="1" else "SZ" if market=="0" else "BJ"
             p=validprice(x.get("f2"))
-            today=datetime.now(timezone.utc).date().isoformat()
+            # Eastmoney may return an old last-traded price after holidays.
+            # Use its exchange quote timestamp, never label an undated price as today.
+            try:
+                seconds=int(x.get("f86") or 0)
+                quote_date=(datetime.fromtimestamp(seconds,timezone.utc)
+                            .astimezone(timezone(timedelta(hours=8))).date().isoformat()
+                            if 1_000_000_000<seconds<4_000_000_000 else None)
+            except (TypeError,ValueError,OverflowError,OSError):
+                quote_date=None
             all_rows[code]={"code":code,"name":name,"exchange":exchange,
-                            "price":p,"priceDate":today if p else None}
+                            "price":p,"priceDate":quote_date if p else None}
         total=data.get("total")
         try:last_total=int(total)
         except (TypeError,ValueError):pass

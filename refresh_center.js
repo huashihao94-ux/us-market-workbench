@@ -51,6 +51,7 @@ async function refreshAll(){
  ];
  const all=await Promise.all(tasks);
  try{sessionStorage.setItem(snapshotKey,JSON.stringify({...earlier,...current}))}catch(_){/* private session */}
+ earlier={...earlier,...current};
  const indexClose=maxdate([all[0]?.indices?.sp500?.asof,all[0]?.indices?.nasdaq?.asof]);
  const usClose=maxdate(Object.values(all[1]?.stocks||{}).map(x=>x.priceDate));
  let lagNotice="";

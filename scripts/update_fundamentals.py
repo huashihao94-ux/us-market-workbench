@@ -16,7 +16,7 @@ import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.parse import quote
 import requests
@@ -346,14 +346,49 @@ def stooq_prices(ticker):
             "priceSource":"Stooq daily CSV (fallback, possible adjusted historical data)",
             "low52":round(min(x[2] for x in window),4)}
 
+def expected_recent_us_close():
+    """Conservative expected weekday close after US market hours.
+
+    Market holidays can have no session; this threshold is only a reason to
+    consult the secondary feed, not proof that a new price must exist.
+    """
+    day = (datetime.now(timezone.utc) - timedelta(hours=6)).date()
+    while day.weekday() >= 5:
+        day -= timedelta(days=1)
+    return day.isoformat()
+
 def price_for(ticker):
+    yahoo = None
+    yahoo_error = ""
     try:
-        return yahoo_prices(ticker)
-    except Exception as err1:
-        try:
-            return stooq_prices(ticker)
-        except Exception as err2:
-            raise RuntimeError(f"Yahoo {str(err1)[:80]}; Stooq {str(err2)[:80]}")
+        yahoo = yahoo_prices(ticker)
+    except Exception as err:
+        yahoo_error = str(err)[:120]
+
+    expected = expected_recent_us_close()
+    if yahoo and yahoo.get("priceDate", "") >= expected:
+        return yahoo
+
+    # A valid but stale Yahoo reply is not a successful *latest* update.
+    # Stooq may have published the newer trading day already. Prefer
+    # whichever source has the later dated closing quote; do not mix dates.
+    try:
+        stooq = stooq_prices(ticker)
+        if not yahoo or stooq["priceDate"] > yahoo.get("priceDate", ""):
+            if yahoo:
+                print(f"{ticker}: Yahoo dated {yahoo.get('priceDate')}, using newer Stooq {stooq['priceDate']}", flush=True)
+            return stooq
+    except Exception as err:
+        if not yahoo:
+            raise RuntimeError(f"Yahoo {yahoo_error}; Stooq {str(err)[:100]}")
+
+    if yahoo:
+        if yahoo.get("priceDate", "") < expected:
+            yahoo["priceWarning"] = (
+                f"Latest retrieved close {yahoo.get('priceDate')}; "
+                f"expected weekday {expected}; alternate source has no newer date")
+        return yahoo
+    raise RuntimeError(f"Both Yahoo and Stooq quote providers unavailable for {ticker}")
 
 def load_file(path, default):
     try:
@@ -412,6 +447,7 @@ def main():
                 rec["financialError"]="Missing CIK: run SEC directory update first"
         try:
             prices=price_for(ticker)
+            rec.pop("priceWarning",None)
             rec.update(prices)
             rec.pop("priceError",None)
         except Exception as exc:

@@ -4,10 +4,11 @@
 const KEY="us-stock-watch-categories-v1", LIMIT=5000;
 const GROWTH_MIN_CAP=20, GROWTH_MAX_CAP=999, GROWTH_RATE=30;
 const GROWTH_PE_MIN=70, GROWTH_PE_MAX=90;
+const CONSUMER_ROE_MIN=20;
 const TYPE={giant:{name:"巨无霸",note:"市值超过5000亿美元，TTM PE分档"},
  growth:{name:"优秀成长股",note:"市值20—999亿 · PE≥70且<90 · 四年增速≥30%"},
  cigar:{name:"烟蒂股",note:"Burry：现金流与资产折价＋低位技术图"},
- consumer:{name:"消费股",note:"食品饮料／零售／消费服务 · ROE与现金流"},
+ consumer:{name:"消费股",note:"预测PE ≤ 10＋2g · ROE＞20%"},
  small:{name:"小市值公司",note:"PS与未来3—5年PE估值"}};
 const BASE="https://raw.githubusercontent.com/huashihao94-ux/us-market-workbench/main/";
 const FALLBACK=[
@@ -97,6 +98,23 @@ function growthModel(s,f){
    cagr=(Math.pow(end.profit/start.profit,1/yrs)-1)*100;
  }
  return {annual,series,latest,capOk,peOk,pastOk,forecastOk,forecastSource,overall,cagr,forecastYear};
+}
+function consumerModel(s,f){
+ const analystEPS=value(s.inputs?.consumerForecastEPS);
+ const growth=value(s.inputs?.consumerGrowth);
+ const forecastSource=String(s.inputs?.consumerEstimateSource||"").trim();
+ const forwardPe=f.p>0&&analystEPS>0?f.p/analystEPS:null;
+ const targetPe=growth===null?null:10+2*growth;
+ const roeOk=f.roe===null?null:f.roe>CONSUMER_ROE_MIN;
+ // Non-positive earnings or a non-positive model PE cannot pass the screen.
+ const peOk=analystEPS===null||growth===null||f.p===null?null:
+   analystEPS<=0||targetPe<=0?false:forwardPe===null?null:forwardPe<=targetPe;
+ const referencePrice=analystEPS>0&&targetPe>0?analystEPS*targetPe:null;
+ const relativeToReference=referencePrice>0&&f.p>0?(f.p/referencePrice-1)*100:null;
+ const overall=[peOk,roeOk].includes(false)?false:
+  peOk===true&&roeOk===true?true:null;
+ return {analystEPS,growth,forecastSource,forwardPe,targetPe,roeOk,peOk,
+   referencePrice,relativeToReference,overall};
 }
 function growthPlot(s,f){
  if(s.type!=="growth")return "";
@@ -383,20 +401,39 @@ function statuses(s,f){
    const fair=value(v.manualFair),mos=fair>0&&f.p>0?(1-f.p/fair)*100:null;
    out.push(keyLine("安全边际",mos===null?"待估算":amount(mos)+"%","需要自己填写合理价格；不自动假设市场价值",mos===null?"待估算":mos>=30?"符合":"未达标"));
  }else if(s.type==="consumer"){
-   const standards=[
-    ["消费股：当前TTM PE",f.peTTM,"consumerPeLimit","倍","upper","现价÷最近12个月EPS，目标上限由你设定"],
-    ["消费股：ROE",f.roe,"consumerRoeMin","%","lower","最新可用完整年报口径，目标下限由你设定"],
-    ["消费股：营收增长",value(f.r?.historicalRevenueGrowth),"consumerRevenueGrowthMin","%","lower","最近两年完整年报收入同比，历史实际，不是预测"],
-    ["消费股：股息率",f.yieldPct,"consumerYieldMin","%","lower","按最近可得股息与股价估算，未分红不强行判不合格"]
-   ];
-   for(const [label,current,targetKey,unit,direction,tip] of standards){
-    const goal=value(v[targetKey]),ok=current===null||goal===null?null:
-      direction==="upper"?current<=goal:current>=goal;
-    const position=current===null?"数据待获取":goal===null?amount(current,2)+unit:
-      amount(current,2)+(current<goal?" < ":current===goal?" = ":" > ")+amount(goal,2)+unit;
-    out.push(keyLine(label,position,tip+(goal===null?"；暂未设置比较标准":""),
-      current===null?"待数据":goal===null?"仅显示事实":ok?"已达标":"未达标"));
-   }
+   const c=consumerModel(s,f);
+   out.push(keyLine("分析师年度EPS平均预测",
+     c.analystEPS===null?"未填写":amount(c.analystEPS,2)+" 美元/股",
+     "请按Yahoo Finance Analysis的Avg. Estimate填写对应财年，并记录来源和日期；不是SEC已披露EPS",
+     c.analystEPS===null?"待预测":c.analystEPS>0?"已填写":"预测EPS非正"));
+   out.push(keyLine("消费股：前瞻PE（预测口径）",
+     c.forwardPe===null?"无法计算":amount(c.forwardPe,2)+"倍",
+     "最新收盘价 ÷ 同一财年的机构平均预测EPS；与上方TTM PE不是同一口径",
+     c.forwardPe===null?"待预测":"已计算"));
+   out.push(keyLine("消费股：合理PE参考公式",
+     c.targetPe===null?"增长率g未填写":"10＋2×"+amount(c.growth,1)+"% = "+amount(c.targetPe,2)+"倍",
+     "按你笔记的经验公式PE＝10＋2g，g为预计年利润/EPS增长百分数；例如20倍隐含g＝5%",
+     c.targetPe===null?"待预测":c.targetPe>0?"参考范围":"公式结果无效"));
+   const pePosition=c.forwardPe===null||c.targetPe===null?"缺少可比数据":
+     amount(c.forwardPe,2)+(c.forwardPe<c.targetPe?" < ":c.forwardPe===c.targetPe?" = ":" > ")+amount(c.targetPe,2)+"倍";
+   out.push(keyLine("前瞻PE ≤ 合理PE",
+     pePosition,"估值项达标：当前预测PE ≤ 10＋2g；此经验式不是市场公认的精确公允价值",
+     c.peOk===null?"待预测":c.peOk?"已达标":"未达标"));
+   out.push(keyLine("消费股：ROE硬标准",
+     f.roe===null?"年报数据缺失":amount(f.roe,2)+(f.roe>20?" > ":f.roe===20?" = ":" < ")+"20%",
+     "你笔记里的标准：ROE必须严格大于20%；按最近完整财年净利润÷平均股东权益",
+     c.roeOk===null?"待数据":c.roeOk?"已达标":"未达标"));
+   out.push(keyLine("消费股综合硬判断",
+     c.overall===true?"估值和ROE两项均达标":c.overall===false?"至少一项未达标":"缺少预测或财报",
+     "ROE＞20% 且 前瞻PE≤(10＋2g)；机构预测EPS及增长率g未取得时不得判达标",
+     c.overall===null?"待数据":c.overall?"已达标":"未达标"));
+   if(c.referencePrice!==null)
+     out.push(keyLine("按笔记公式计算的参考股价",
+       amount(c.referencePrice,2)+"美元/股"+(c.relativeToReference===null?"":
+         "；现价"+(c.relativeToReference<=0?" ≤ ":" > ")+"参考价"),
+       "预测EPS × (10＋2g)；仅为敏感性估算，不等于真实内在价值；"+
+         (c.forecastSource?"预测依据："+c.forecastSource:"请补充预测来源和日期"),
+       c.relativeToReference===null?"估值参考":c.relativeToReference<=0?"低于参考价":"高于参考价"));
    const fcf=value(f.r?.fcf),fcfYield=fcf!==null&&f.cap>0?fcf/f.cap*100:null;
    out.push(keyLine("消费股：自由现金流",fcf===null?"—":amount(fcf,2)+"亿美元",
      "经营现金流减资本开支；需结合品牌、渠道、库存和行业周期查看",
@@ -434,10 +471,9 @@ function renderDetails(){
     editor("未来长期预估年利润增长率 g（%）","growth","用于PE估值参考；与下一财年预测分开"):
     s.type==="cigar"?editor("个人估算合理价（美元/股）","manualFair","可留空"):
     s.type==="consumer"?
-      editor("你设定的TTM PE上限（倍）","consumerPeLimit","可留空；例如25")+
-      editor("你设定的ROE下限（%）","consumerRoeMin","可留空；例如15")+
-      editor("你设定的年营收增速下限（%）","consumerRevenueGrowthMin","可留空；例如8")+
-      editor("你设定的股息率下限（%）","consumerYieldMin","可留空；例如2"):
+      editor("机构对目标财年的EPS平均预测（美元/股）","consumerForecastEPS","例如2.81；请查Yahoo Finance Analysis")+
+      editor("预计年利润／EPS增长率 g（%）","consumerGrowth","例如5，合理PE＝20倍")+
+      textEditor("预测EPS财年、来源和更新日期","consumerEstimateSource","例如：2027财年，Yahoo Finance Avg. Estimate，日期"):
     s.type==="small"?editor("预计营业收入年增速（%）","revGrowth","自行预测")+editor("预计未来净利润率（%）","margin","自行预测")+editor("预测年数","years","3 或 5","3")+editor("可比公司PS上限","psLimit","请参照同行")+editor("未来PE上限","forwardLimit","例：20","20"):"";
  const latest=record(s);
  const html='<div class="detail-title"><div><h2>'+esc(s.name)+' <span class="muted">'+esc(s.ticker)+'</span></h2>'+
@@ -469,6 +505,7 @@ function renderDetails(){
   (foreign?' 最新读取异常：'+esc(foreign):"")+'</div>'+growthPlot(s,f)+burryPlot(s,f)+
   '<h3>你的目标与当前比较</h3><div class="compare-list">'+statuses(s,f)+'</div>'+
   (model?'<h3>你设定的预测／目标</h3><p class="small muted">未来增长率、行业估值上限等预测值不会凭空从历史报表推算。</p><div class="editor">'+model+'</div>':'')+
+  (s.type==="consumer"?'<p class="small muted">预测EPS可对照 <a target="_blank" rel="noopener noreferrer" href="https://finance.yahoo.com/quote/'+encodeURIComponent(s.ticker.replace(".","-"))+'/analysis/">Yahoo Finance：'+esc(s.ticker)+' 分析师预测</a>。图片中的60.23÷2.81≈21.43倍仅是历史教学示例，不能当成最新数据。</p>':'')+
   '<h3>个人观察笔记</h3><textarea id="memo" rows="3" placeholder="记录你看好的原因和需要验证的风险">'+esc(s.inputs?.memo||"")+'</textarea>'+
   '<div class="small muted">任何无法可靠取得的指标都会显示「—」，不会假定为0或编造数据。黄色标线和横向进度条已移除。</div>';
  $("detail").innerHTML=html;
@@ -496,7 +533,7 @@ function normalizeRows(rows){
  }
 }
 async function getData(file){
- // Prefer the version actually published alongside this page. GitHub\'s raw
+ // Prefer the version actually published alongside this page. GitHub's raw
  // cache can briefly lag the successful Pages deployment after a refresh.
  const urls=[file+"?v="+Date.now(),BASE+file+"?v="+Date.now()];
  for(const url of urls){try{const r=await fetch(url,{cache:"no-store"});if(r.ok)return await r.json()}catch{}}

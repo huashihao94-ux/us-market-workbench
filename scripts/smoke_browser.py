@@ -37,7 +37,8 @@ def us_test(page):
     page.goto(URL+"workbench.html",wait_until="domcontentloaded",timeout=60000)
     page.wait_for_selector("#query")
     page.wait_for_function("() => document.querySelector('#universeStatus')?.textContent?.includes('可搜索')",timeout=70000)
-    assert page.locator("#categories .cat").count()==4
+    assert page.locator("#categories .cat").count()==5
+    assert "消费股" in page.locator("#categories").inner_text()
     assert page.locator(".track").count()==0
     results=[]
     for name,ticker,giant in TICKERS:
@@ -73,6 +74,7 @@ def us_test(page):
             assert page.locator("#detail .growth-chart .growth-svg").count()==1,(ticker,"growth line chart")
             assert page.locator("#detail .growth-table tbody tr").count()==4,(ticker,"three actual + one forecast")
             assert "30%硬标准" in page.locator("#detail").inner_text()
+            assert "成长股TTM PE硬标准" in detail and "70倍" in detail and "90倍" in detail
             forecast=page.locator('input[data-field="forecastGrowth"]')
             forecast.fill("35")
             forecast.press("Tab")
@@ -80,6 +82,31 @@ def us_test(page):
             assert "35.0%" in forecast_row and "≥ 30%" in forecast_row,(ticker,forecast_row)
         results.append({"ticker":ticker,"price":price,"cap":cap,"ttm_eps":eps,"roe":roe,"label":label[:135]})
     print("US_STOCKS "+json.dumps(results,ensure_ascii=False),flush=True)
+    # A consumer stock is user-classified (no invented universal thresholds).
+    # Burry's cigar method must expose valuation inputs even before its first
+    # one-year daily price-history cache has been regenerated.
+    for ticker,kind,required in (
+       ("KO","consumer","消费股：自由现金流"),
+       ("ON","cigar","Burry：企业价值 EV / EBITDA")
+    ):
+        page.locator("#newType").select_option(kind)
+        page.locator("#query").fill(ticker)
+        page.locator("#suggestions button").first.wait_for(timeout=15000)
+        page.locator("#suggestions button").first.click()
+        page.wait_for_function("() => !document.querySelector('#addStock')?.disabled",timeout=70000)
+        page.locator("#addStock").click()
+        page.wait_for_function("(t) => document.querySelector('#detail h2')?.textContent?.includes(t)",
+                               arg=ticker,timeout=20000)
+        detail=page.locator("#detail").inner_text()
+        assert required in detail,(ticker,kind,detail[:1000])
+        if kind=="consumer":
+            assert "你设定的ROE下限" in detail
+            assert page.locator('input[data-field="consumerRoeMin"]').count()==1
+        else:
+            assert "Burry：现价相对52周低点" in detail
+            assert "Michael Burry 参考：日线位置与低位支撑" in detail
+            assert page.locator("#detail .growth-chart").count()==1
+        print(f"EXTRA_CLASS {ticker} {kind} PASS",flush=True)
     check_refresh(page,"us-stock-pool")
 
 def a_test(page):

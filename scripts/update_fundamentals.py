@@ -337,6 +337,14 @@ def yahoo_prices(ticker):
             date=datetime.fromtimestamp(timestamp,timezone.utc).date().isoformat()
             row={"price":round(float(price),4),
                  "priceDate":date, "priceSource":("Yahoo Finance chart via third-party cors.dev proxy (unofficial, daily close)" if host=="proxy.cors.dev" else "Yahoo Finance chart (unofficial, daily close)")}
+            # Preserve the last trading year's daily *closes* for an honest
+            # technical chart. The daily quote and its history share one source.
+            daily=[]
+            for day_ts, day_close in recent[-260:]:
+                daily.append([datetime.fromtimestamp(day_ts,timezone.utc).date().isoformat(),
+                              round(float(day_close),4)])
+            if len(daily)>=20:
+                row["priceHistory"]=daily
             if safe_num(lowest) and lowest>0:
                 row["low52"]=round(float(lowest),4)
             return row
@@ -366,7 +374,8 @@ def stooq_prices(ticker):
     window=usable[-260:]
     return {"price":round(last[1],4),"priceDate":last[0],
             "priceSource":"Stooq daily CSV (fallback, possible adjusted historical data)",
-            "low52":round(min(x[2] for x in window),4)}
+            "low52":round(min(x[2] for x in window),4),
+            "priceHistory":[[day,round(close,4)] for day,close,_ in window]}
 
 def expected_recent_us_close():
     """Conservative expected weekday close after US market hours.

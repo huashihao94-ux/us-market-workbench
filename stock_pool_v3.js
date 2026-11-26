@@ -3,9 +3,11 @@
 "use strict";
 const KEY="us-stock-watch-categories-v1", LIMIT=5000;
 const GROWTH_MIN_CAP=20, GROWTH_MAX_CAP=999, GROWTH_RATE=30;
+const GROWTH_PE_MIN=70, GROWTH_PE_MAX=90;
 const TYPE={giant:{name:"巨无霸",note:"市值超过5000亿美元，TTM PE分档"},
- growth:{name:"优秀成长股",note:"市值20—999亿美元 · 四年增速逐年≥30%"},
- cigar:{name:"烟蒂股",note:"PE、PB、股息及安全边际"},
+ growth:{name:"优秀成长股",note:"市值20—999亿 · PE≥70且<90 · 四年增速≥30%"},
+ cigar:{name:"烟蒂股",note:"Burry：现金流与资产折价＋低位技术图"},
+ consumer:{name:"消费股",note:"食品饮料／零售／消费服务 · ROE与现金流"},
  small:{name:"小市值公司",note:"PS与未来3—5年PE估值"}};
 const BASE="https://raw.githubusercontent.com/huashihao94-ux/us-market-workbench/main/";
 const FALLBACK=[
@@ -82,16 +84,19 @@ function growthModel(s,f){
  const pastOk=badProfit||historical.some(x=>x.rate!==null&&x.rate<GROWTH_RATE)?false:
   historical.every(x=>x.rate!==null)?true:null;
  const forecastOk=forecast===null?null:forecast>=GROWTH_RATE;
+ // Only actual trailing-twelve-month P/E counts. Annual P/E cannot silently
+ // substitute for a missing TTM denominator.
+ const peOk=f.peTTM===null?null:f.peTTM>=GROWTH_PE_MIN&&f.peTTM<GROWTH_PE_MAX;
  const forecastSource=String(s.inputs?.forecastSource||"").trim();
- const overall=[capOk,pastOk,forecastOk].includes(false)?false:
-  [capOk,pastOk,forecastOk].every(x=>x===true)?true:null;
+ const overall=[capOk,peOk,pastOk,forecastOk].includes(false)?false:
+  [capOk,peOk,pastOk,forecastOk].every(x=>x===true)?true:null;
  let cagr=null;
  if(annual.length>=5){
   const end=annual[0],start=annual[4],yrs=(Date.parse(end.end)-Date.parse(start.end))/86400000/365.2425;
   if(yrs>=3.6&&yrs<=4.4&&annual.slice(0,5).every(x=>x.profit>0))
    cagr=(Math.pow(end.profit/start.profit,1/yrs)-1)*100;
  }
- return {annual,series,latest,capOk,pastOk,forecastOk,forecastSource,overall,cagr,forecastYear};
+ return {annual,series,latest,capOk,peOk,pastOk,forecastOk,forecastSource,overall,cagr,forecastYear};
 }
 function growthPlot(s,f){
  if(s.type!=="growth")return "";
@@ -135,6 +140,92 @@ function growthPlot(s,f){
   '<div class="growth-chart">'+svg+'</div><div class="growth-table-wrap"><table class="growth-table"><thead>'+
   '<tr><th>财年</th><th>净利润同比</th><th>性质</th><th>30%判断</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
   '<p class="small muted">历史利润取自SEC 10-K，只有前一财年净利润为正且年度连续时才计算同比。亏损转盈利不能直接写成“增长几百%”；预测值不是SEC财报。预测依据：'+esc(g.forecastSource||"尚未填写，请补充公司指引或分析师预期的来源和日期")+'。</p>';
+}
+
+function burryModel(s,f){
+ const r=f.r||{},cash=value(r.cash),debt=value(r.debt),ebitda=value(r.ebitda),
+  fcf=value(r.fcf),currentAssets=value(r.currentAssets),liabilities=value(r.liabilities),
+  low52=value(r.low52);
+ const ev=f.cap!==null&&cash!==null&&debt!==null?f.cap+debt-cash:null;
+ const evToEbitda=ev!==null&&ebitda>0?ev/ebitda:null;
+ const fcfYield=f.cap>0&&fcf!==null?fcf/f.cap*100:null;
+ // Graham-style net-net: current assets less *all* liabilities; not merely
+ // current liabilities, and never count missing liabilities as zero.
+ const ncav=currentAssets!==null&&liabilities!==null?currentAssets-liabilities:null;
+ const ncavRatio=ncav>0&&f.cap>0?f.cap/ncav:null;
+ const fromLow=f.p>0&&low52>0?(f.p/low52-1)*100:null;
+ const raw=Array.isArray(r.priceHistory)?r.priceHistory:[];
+ const byDate=new Map();
+ for(const row of raw){
+  if(!Array.isArray(row)||!/\d{4}-\d{2}-\d{2}/.test(String(row[0]))||!(value(row[1])>0))continue;
+  byDate.set(String(row[0]),value(row[1]));
+ }
+ const prices=[...byDate].sort((a,b)=>a[0].localeCompare(b[0]))
+  .slice(-260).map(([date,close])=>({date,close}));
+ const average=n=>prices.length>=n?
+  prices.slice(-n).reduce((sum,x)=>sum+x.close,0)/n:null;
+ const ma50=average(50),ma200=average(200);
+ // A rough support *candidate*: two separated low-area tests and no recent
+ // closing breach. This is not a verified chart pattern or buy instruction.
+ let tests=0,lastTest=-1000;
+ if(low52>0){
+  prices.forEach((x,i)=>{
+   if(x.close<=low52*1.05&&i-lastTest>=10){tests++;lastTest=i;}
+  });
+ }
+ const hold=low52>0&&prices.length>=20&&prices.slice(-20).every(x=>x.close>=low52*0.99);
+ const near52=fromLow!==null&&fromLow>=0&&fromLow<=15;
+ const support=prices.length>=60&&near52&&tests>=2&&hold;
+ return {cash,debt,ebitda,fcf,ev,evToEbitda,fcfYield,ncav,ncavRatio,
+  low52,fromLow,prices,ma50,ma200,near52,support,tests};
+}
+function burryPlot(s,f){
+ if(s.type!=="cigar")return "";
+ const m=burryModel(s,f),prices=m.prices;
+ const intro='<h3>Michael Burry 参考：日线位置与低位支撑</h3>'+
+  '<p class="small muted">他的早期公开方法强调先研究内在价值，再观察52周低点附近约10%—15%的价格区间及支撑。下图是实际日线收盘价（青）、50日均线（橙）、200日均线（紫），绿色虚线标记52周低点；均线和支撑只是辅助，不是他的固定公式。</p>';
+ if(prices.length<20)
+  return intro+'<div class="growth-chart empty">这只股票暂无足够的可核实日线数据，暂不绘制价格曲线。52周低价和估值指标仍独立显示；等待后台更新后自动补充。</div>';
+ const close=prices.map(x=>x.close),all=close.concat(m.low52>0?[m.low52]:[]);
+ const min=Math.min(...all),max=Math.max(...all),pad=Math.max((max-min)*0.10,max*0.02,0.01);
+ const lower=Math.max(0,min-pad),upper=max+pad;
+ const x=i=>66+i/Math.max(1,prices.length-1)*560;
+ const y=v=>205-(v-lower)/(upper-lower)*162;
+ const poly=series=>{
+  let d="",started=false;
+  series.forEach((v,i)=>{
+   if(v===null){started=false;return;}
+   d+=(started?" L":" M")+x(i).toFixed(1)+" "+y(v).toFixed(1);
+   started=true;
+  });
+  return d.trim();
+ };
+ const mas=n=>prices.map((_,i)=>i+1<n?null:
+  prices.slice(i+1-n,i+1).reduce((sum,row)=>sum+row.close,0)/n);
+ const line=(path,color,dash="")=>'<path d="'+path+'" fill="none" stroke="'+color+
+  '" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"'+
+  (dash?' stroke-dasharray="'+dash+'"':"")+'/>';
+ const grid=Array.from({length:5},(_,i)=>lower+(upper-lower)*i/4).map(v=>
+  '<line x1="62" x2="630" y1="'+y(v)+'" y2="'+y(v)+'" stroke="#30445c" stroke-width="1"/>'+
+  '<text x="57" y="'+(y(v)+4)+'" text-anchor="end" fill="#9cafc3" font-size="12">$'+amount(v,1)+'</text>').join("");
+ const dates=[0,Math.floor((prices.length-1)/3),Math.floor((prices.length-1)*2/3),prices.length-1]
+  .map(i=>'<text x="'+x(i)+'" y="235" text-anchor="middle" fill="#c3d6e7" font-size="12">'+
+   esc(prices[i].date.slice(0,7))+'</text>').join("");
+ const supportLine=m.low52>0?
+  '<line x1="62" x2="630" y1="'+y(m.low52)+'" y2="'+y(m.low52)+
+  '" stroke="#82ddbb" stroke-dasharray="6 5" stroke-width="1.5"/>'+
+  '<text x="630" y="'+(y(m.low52)-7)+'" text-anchor="end" fill="#82ddbb" font-size="12">52周低点 $'+amount(m.low52)+'</text>':"";
+ const svg='<svg class="growth-svg" viewBox="0 0 680 255" role="img" aria-label="'+
+  esc("过去约一年的真实日线收盘价，50日均线，200日均线和52周最低价")+'">'+
+  grid+supportLine+line(poly(close),"#79d9e7")+
+  (prices.length>=50?line(poly(mas(50)),"#ffcb89"):"")+
+  (prices.length>=200?line(poly(mas(200)),"#bba8ff"):"")+
+  dates+'</svg>';
+ return intro+'<div class="growth-chart">'+svg+'</div>'+
+  '<div class="chart-legend"><span class="legend-close">日收盘价</span><span class="legend-ma50">50日均线'+(m.ma50===null?"（数据不足）":" $"+amount(m.ma50))+'</span>'+
+  '<span class="legend-ma200">200日均线'+(m.ma200===null?"（数据不足）":" $"+amount(m.ma200))+'</span></div>'+
+  '<p class="small muted">曲线截至 '+esc(prices.at(-1).date)+'；行情源：'+esc(f.r?.priceSource||"未注明")+
+  '。近低位、均线或反弹并不证明资产便宜，也不能代替审查债务、流动性及真实自由现金流。</p>';
 }
 
 function effectiveType(s){return s.type==="white"?"giant":s.type}
@@ -206,6 +297,13 @@ function statuses(s,f){
      f.cap===null?"待查询":amount(f.cap,1)+(g.capOk?" 在 ":" 不在 ")+GROWTH_MIN_CAP+"—"+GROWTH_MAX_CAP+" 亿美元",
      "适用于几十亿至几百亿美元的成长型公司；大型公司仍可观察但不通过此项",
      g.capOk===null?"待数据":g.capOk?"已达标":"未达标"));
+   const pePosition=f.peTTM===null?"TTM PE待财报":
+     f.peTTM<GROWTH_PE_MIN?amount(f.peTTM)+" < 70":
+     f.peTTM<GROWTH_PE_MAX?"70 ≤ "+amount(f.peTTM)+" < 90":
+     amount(f.peTTM)+" ≥ 90";
+   out.push(keyLine("成长股TTM PE硬标准",pePosition+" 倍",
+     "你的新区间：70倍 ≤ 当前TTM PE < 90倍；70以下及90以上均不达标",
+     g.peOk===null?"待数据":g.peOk?"已达标":"未达标"));
    const have=g.series.slice(0,3).filter(x=>x.rate!==null).length;
    out.push(keyLine("过去3个已披露年度逐年增长",
      g.pastOk===true?"3/3 年 ≥30%":g.pastOk===false?"有年份低于30%或利润非正":have+"/3 年可计算",
@@ -216,8 +314,8 @@ function statuses(s,f){
      "预计财年："+g.forecastYear+"；"+(g.forecastSource?"依据："+g.forecastSource:"预测来源未填写，请补充")+"；非SEC历史披露",
      g.forecastOk===null?"待预测":g.forecastOk?"已达标":"未达标"));
    out.push(keyLine("优秀成长股综合硬判断",
-     g.overall===true?"三项均达标":g.overall===false?"至少一项未达标":"缺少完整数据",
-     "市值20—999亿美元＋3个历史年度每年利润增速≥30%＋下一财年预计≥30%",
+     g.overall===true?"四项均达标":g.overall===false?"至少一项未达标":"缺少完整数据",
+     "市值20—999亿美元＋TTM PE≥70且<90＋3个历史年度每年利润增速≥30%＋下一财年预计≥30%",
      g.overall===null?"待数据":g.overall?"已达标":"未达标"));
    if(g.cagr!==null)
      out.push(keyLine("辅助：过去4年净利润CAGR",amount(g.cagr,1)+"%",
@@ -241,10 +339,42 @@ function statuses(s,f){
          pe<=lower?"已达标":pe<=upper?"接近区间":"偏高未达标"));
    }
  }else if(s.type==="cigar"){
+   const b=burryModel(s,f);
+   out.push(keyLine("Burry：企业价值 EV / EBITDA",
+     b.evToEbitda===null?"—":amount(b.evToEbitda,2)+"倍",
+     "EV=市值＋有息债务－现金；EBITDA≈营业利润＋折旧摊销，需结合行业和周期比较，没有统一的通过倍数",
+     b.evToEbitda===null?"待数据":"估值参考"));
+   out.push(keyLine("Burry：自由现金流收益率",
+     b.fcfYield===null?"—":amount(b.fcfYield,2)+"%",
+     "最近完整年度自由现金流÷当前市值；负数表示现金流消耗，不自动代表被低估",
+     b.fcfYield===null?"待数据":b.fcfYield>0?"现金流为正":"现金流为负"));
+   out.push(keyLine("Burry/Graham：净净股资产折价",
+     b.ncavRatio===null?(b.ncav!==null&&b.ncav<=0?"净流动资产不为正":"待数据"):
+       amount(b.ncavRatio,2)+"倍 "+(b.ncavRatio<2/3?"< 0.67": "≥ 0.67"),
+     "净流动资产价值NCAV＝流动资产－全部负债；市值<NCAV的2/3才符合这一特殊资产型筛选，不代表可以买入",
+     b.ncavRatio===null?"待核实":b.ncavRatio<2/3?"资产折价候选":"未达标"));
+   out.push(keyLine("Burry：现价相对52周低点",
+     b.fromLow===null?"—":amount(b.fromLow,1)+"%"+(b.near52?" ≤ 15%":" > 15%或跌破旧低"),
+     "本人早期公开偏好：在已有支撑的52周低点附近10%—15%以内观察；不是单靠跌幅决定买点",
+     b.fromLow===null?"待行情":b.near52?"低位区间":"不在区间"));
+   out.push(keyLine("日线低位支撑辅助核验",
+     b.prices.length<60?"日线不足":b.support?"有两次分离的低位测试":"尚未确认",
+     "辅助规则：至少60个收盘日、相隔≥10交易日的两次低位测试，且近20日未明显跌破低位；不属于Burry公布的固定公式",
+     b.prices.length<60?"待数据":b.support?"初步支撑":"谨慎观察"));
+   if(b.ma50!==null)
+     out.push(keyLine("当前价与50日均线",
+       amount(f.p)+(f.p>=b.ma50?" ≥ ":" < ")+amount(b.ma50)+"美元",
+       "趋势参考而非买卖信号",f.p>=b.ma50?"高于均线":"低于均线"));
+   out.push(keyLine("Burry研究提示",
+     "估值优先，图形辅助",
+     "查看高负债、一次性现金流、表外风险与行业逆风；不要把低PE或触及52周低点自动解释为安全边际",
+     "研究清单"));
+   // Preserve the older classic cigar-stock heuristics, but explicitly
+   // label them as distinct from Burry's documented method.
    const tests=[
-    ["市盈率 PE",f.peTTM,15,"倍",false],
-    ["市净率 PB",f.pb,1,"倍",false],
-    ["股息率",f.yieldPct,3,"%",true]
+    ["传统烟蒂参考：PE",f.peTTM,15,"倍",false],
+    ["传统烟蒂参考：PB",f.pb,1,"倍",false],
+    ["传统烟蒂参考：股息率",f.yieldPct,3,"%",true]
    ];
    for(const [name,val,limit,unit,higher] of tests){
      out.push(keyLine(name,val===null?"—":amount(val)+(higher?(val>=limit?" ≥ ":" < "):(val<limit?" < ":" ≥ "))+limit,
@@ -252,6 +382,28 @@ function statuses(s,f){
    }
    const fair=value(v.manualFair),mos=fair>0&&f.p>0?(1-f.p/fair)*100:null;
    out.push(keyLine("安全边际",mos===null?"待估算":amount(mos)+"%","需要自己填写合理价格；不自动假设市场价值",mos===null?"待估算":mos>=30?"符合":"未达标"));
+ }else if(s.type==="consumer"){
+   const standards=[
+    ["消费股：当前TTM PE",f.peTTM,"consumerPeLimit","倍","upper","现价÷最近12个月EPS，目标上限由你设定"],
+    ["消费股：ROE",f.roe,"consumerRoeMin","%","lower","最新可用完整年报口径，目标下限由你设定"],
+    ["消费股：营收增长",value(f.r?.historicalRevenueGrowth),"consumerRevenueGrowthMin","%","lower","最近两年完整年报收入同比，历史实际，不是预测"],
+    ["消费股：股息率",f.yieldPct,"consumerYieldMin","%","lower","按最近可得股息与股价估算，未分红不强行判不合格"]
+   ];
+   for(const [label,current,targetKey,unit,direction,tip] of standards){
+    const goal=value(v[targetKey]),ok=current===null||goal===null?null:
+      direction==="upper"?current<=goal:current>=goal;
+    const position=current===null?"数据待获取":goal===null?amount(current,2)+unit:
+      amount(current,2)+(current<goal?" < ":current===goal?" = ":" > ")+amount(goal,2)+unit;
+    out.push(keyLine(label,position,tip+(goal===null?"；暂未设置比较标准":""),
+      current===null?"待数据":goal===null?"仅显示事实":ok?"已达标":"未达标"));
+   }
+   const fcf=value(f.r?.fcf),fcfYield=fcf!==null&&f.cap>0?fcf/f.cap*100:null;
+   out.push(keyLine("消费股：自由现金流",fcf===null?"—":amount(fcf,2)+"亿美元",
+     "经营现金流减资本开支；需结合品牌、渠道、库存和行业周期查看",
+     fcf===null?"待数据":fcf>0?"现金流为正":"现金流为负"));
+   if(fcfYield!==null)
+    out.push(keyLine("消费股：自由现金流收益率",amount(fcfYield,2)+"%",
+     "年度自由现金流÷市值；只用于估值比较","估值参考"));
  }else {
    const gr=value(v.revGrowth),margin=value(v.margin),years=value(v.years),target=value(v.forwardLimit),psLimit=value(v.psLimit);
    const future=gr!==null&&margin!==null&&years>0&&f.revenue>0?f.revenue*Math.pow(1+gr/100,years)*margin/100:null;
@@ -281,6 +433,11 @@ function renderDetails(){
     textEditor("预测来源及日期","forecastSource","例如：公司指引／分析师一致预期（日期）")+
     editor("未来长期预估年利润增长率 g（%）","growth","用于PE估值参考；与下一财年预测分开"):
     s.type==="cigar"?editor("个人估算合理价（美元/股）","manualFair","可留空"):
+    s.type==="consumer"?
+      editor("你设定的TTM PE上限（倍）","consumerPeLimit","可留空；例如25")+
+      editor("你设定的ROE下限（%）","consumerRoeMin","可留空；例如15")+
+      editor("你设定的年营收增速下限（%）","consumerRevenueGrowthMin","可留空；例如8")+
+      editor("你设定的股息率下限（%）","consumerYieldMin","可留空；例如2"):
     s.type==="small"?editor("预计营业收入年增速（%）","revGrowth","自行预测")+editor("预计未来净利润率（%）","margin","自行预测")+editor("预测年数","years","3 或 5","3")+editor("可比公司PS上限","psLimit","请参照同行")+editor("未来PE上限","forwardLimit","例：20","20"):"";
  const latest=record(s);
  const html='<div class="detail-title"><div><h2>'+esc(s.name)+' <span class="muted">'+esc(s.ticker)+'</span></h2>'+
@@ -301,9 +458,15 @@ function renderDetails(){
   cell("自由现金流",value(r.fcf),"亿美元",period(r,"fcf"))+
   cell("净资产",f.eq,"亿美元",period(r,"equity"))+
   cell("历史营收增长率",value(r.historicalRevenueGrowth),"%","已发生，不是预测")+
+  (s.type==="cigar"?
+   cell("现金及等价物",value(r.cash),"亿美元",period(r,"cash"))+
+   cell("已披露有息债务估算",value(r.debt),"亿美元",period(r,"debt"))+
+   cell("流动资产",value(r.currentAssets),"亿美元",period(r,"currentAssets"))+
+   cell("全部负债",value(r.liabilities),"亿美元",period(r,"liabilities"))+
+   cell("EBITDA近似值",value(r.ebitda),"亿美元",period(r,"ebitda")):"")+
   '</div><div class="note">数据来源：'+esc(secs)+
   '. 年度EPS、年报ROE、收入和净利润不一定是最近季度或TTM口径。'+
-  (foreign?' 最新读取异常：'+esc(foreign):"")+'</div>'+growthPlot(s,f)+
+  (foreign?' 最新读取异常：'+esc(foreign):"")+'</div>'+growthPlot(s,f)+burryPlot(s,f)+
   '<h3>你的目标与当前比较</h3><div class="compare-list">'+statuses(s,f)+'</div>'+
   (model?'<h3>你设定的预测／目标</h3><p class="small muted">未来增长率、行业估值上限等预测值不会凭空从历史报表推算。</p><div class="editor">'+model+'</div>':'')+
   '<h3>个人观察笔记</h3><textarea id="memo" rows="3" placeholder="记录你看好的原因和需要验证的风险">'+esc(s.inputs?.memo||"")+'</textarea>'+
@@ -482,6 +645,12 @@ function fromSecFacts(facts,cik){
   cash:[["CashAndCashEquivalentsAtCarryingValue"],"USD","instant"],
   dividend:[["CommonStockDividendsPerShareDeclared"],"USD/shares","annual"],
   liabilities:[["Liabilities"],"USD","instant"],
+  currentAssets:[["AssetsCurrent"],"USD","instant"],
+  opIncome:[["OperatingIncomeLoss"],"USD","annual"],
+  depreciation:[["DepreciationDepletionAndAmortization","DepreciationDepletionAndAmortizationPropertyPlantAndEquipment"],"USD","annual"],
+  longDebt:[["LongTermDebtNoncurrent","LongTermDebt"],"USD","instant"],
+  currentDebt:[["LongTermDebtCurrent","LongTermDebtAndCapitalLeaseObligationsCurrent"],"USD","instant"],
+  shortDebt:[["ShortTermBorrowings"],"USD","instant"],
   cfo:[["NetCashProvidedByUsedInOperatingActivities"],"USD","annual"],
   capex:[["PaymentsToAcquirePropertyPlantAndEquipment"],"USD","annual"],
   shares:[["EntityCommonStockSharesOutstanding","CommonStockSharesOutstanding"],"shares","instant"]
@@ -494,6 +663,16 @@ function fromSecFacts(facts,cik){
   meta[key]={end:item.end,filed:item.filed,tag:item.tag};
  }
  if(Number.isFinite(out.cfo)&&Number.isFinite(out.capex))out.fcf=out.cfo-Math.abs(out.capex);
+ if(Number.isFinite(out.opIncome)&&Number.isFinite(out.depreciation)&&meta.opIncome?.end===meta.depreciation?.end){
+  out.ebitda=out.opIncome+out.depreciation;
+  meta.ebitda={end:meta.opIncome.end,note:"营业利润＋折旧摊销近似值；非调整后EBITDA"};
+ }
+ const debtKeys=["longDebt","currentDebt","shortDebt"].filter(k=>Number.isFinite(out[k]));
+ if(debtKeys.length){
+  const cur=meta.longDebt?.tag==="LongTermDebt"?0:(out.currentDebt||0);
+  out.debt=(out.longDebt||0)+cur+(out.shortDebt||0);
+  meta.debt={end:meta.longDebt?.end||meta.currentDebt?.end||meta.shortDebt?.end||"",note:"已报告的有息债务合计；部分租赁负债可能遗漏"};
+ }
  if(Number.isFinite(out.netIncome)&&out.equity>0){out.roe=out.netIncome/out.equity*100;meta.roe={end:meta.netIncome?.end||""};}
  const ttm=ttmFromFacts(facts);
  if(ttm){out.ttmEPS=ttm.value;meta.ttmEPS={end:ttm.end,filed:ttm.filed,method:ttm.method};}
@@ -522,8 +701,8 @@ async function loadOnDemand(ticker,force=false){
   if(force||!old.price){
    tasks.push((async()=>{
      const target=encodeURIComponent(ticker.replace(".","-"));
-     for(const url of ["https://proxy.cors.dev/https://query1.finance.yahoo.com/v8/finance/chart/"+target+"?range=1mo&interval=1d",
-      "https://query1.finance.yahoo.com/v8/finance/chart/"+target+"?range=1mo&interval=1d"]){
+     for(const url of ["https://proxy.cors.dev/https://query1.finance.yahoo.com/v8/finance/chart/"+target+"?range=1y&interval=1d",
+      "https://query1.finance.yahoo.com/v8/finance/chart/"+target+"?range=1y&interval=1d"]){
       try{
        const j=await jsonFetch(url),r=j.chart?.result?.[0];if(!r)continue;
        const quotes=r.indicators?.quote?.[0]?.close||[],times=r.timestamp||[];
@@ -532,6 +711,9 @@ async function loadOnDemand(ticker,force=false){
        const last=pairs.at(-1);fresh.price=last.p;
        fresh.priceDate=new Date(last.t*1000).toLocaleDateString("sv-SE",{timeZone:"America/New_York"});
        fresh.priceSource="Yahoo chart日收盘（公开接口，可能延迟）";
+       if(pairs.length>=20)fresh.priceHistory=pairs.slice(-260).map(x=>[
+        new Date(x.t*1000).toLocaleDateString("sv-SE",{timeZone:"America/New_York"}),
+        Math.round(x.p*10000)/10000]);
        const outstanding=value(r.meta?.sharesOutstanding);
        if(outstanding>0)fresh.shares=outstanding/1e8;
        got++;break;

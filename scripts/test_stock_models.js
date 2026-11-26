@@ -13,8 +13,8 @@ const make=new Function("ticker","type","recordData","inputs","cap","pe","price"
  models+`
   stocks.set(ticker,recordData);
   const s={ticker,type,inputs};
-  const f={r:recordData,cap,peTTM:pe,p:price};
-  return {growth:growthModel(s,f),burry:burryModel(s,f),burryHtml:burryPlot(s,f)};
+  const f={r:recordData,cap,peTTM:pe,p:price,roe:recordData.roe??null};
+  return {growth:growthModel(s,f),burry:burryModel(s,f),burryHtml:burryPlot(s,f),consumer:consumerModel(s,f)};
  `);
 
 const income=[14,10,7,5].map((v,i)=>({
@@ -48,4 +48,19 @@ const missing=make("TEST","cigar",{low52:8}, {},50,null,11);
 assert.equal(missing.burry.evToEbitda,null);
 assert.equal(missing.burry.ncavRatio,null);
 assert.ok(missing.burryHtml.includes("暂无足够"));
-console.log("PASS: growth PE [70,90), four hard gates, Burry EV/FCF/NCAV, daily chart and missing data");
+const ko={roe:23};
+const consumerInputs={consumerForecastEPS:2.81,consumerGrowth:5,consumerEstimateSource:"Yahoo Analysis 示例"};
+const sample=make("KO","consumer",ko,consumerInputs,260,25,60.23).consumer;
+assert.ok(Math.abs(sample.forwardPe-60.23/2.81)<1e-8);
+assert.equal(sample.targetPe,20);
+assert.ok(Math.abs(sample.referencePrice-56.2)<1e-8);
+assert.equal(sample.peOk,false);
+assert.equal(sample.roeOk,true);
+assert.equal(sample.overall,false);
+assert.equal(make("KO","consumer",{roe:20},consumerInputs,260,25,50).consumer.roeOk,false,"ROE must be strictly >20%");
+assert.equal(make("KO","consumer",{roe:20.01},consumerInputs,260,25,50).consumer.overall,true);
+assert.equal(make("KO","consumer",{roe:30},consumerInputs,260,25,56.2).consumer.peOk,true,"forward PE equality passes");
+assert.equal(make("KO","consumer",{roe:30},{consumerGrowth:5},260,25,50).consumer.overall,null,"missing analyst EPS cannot pass");
+assert.equal(make("KO","consumer",{roe:30},{consumerForecastEPS:2.81},260,25,50).consumer.overall,null,"missing growth g cannot pass");
+assert.equal(make("KO","consumer",{roe:30},{consumerForecastEPS:-1,consumerGrowth:5},260,25,50).consumer.peOk,false,"non-positive earnings do not pass");
+console.log("PASS: growth PE [70,90), Burry valuation/daily chart, consumer forward EPS PE=10+2g and ROE>20% boundaries");

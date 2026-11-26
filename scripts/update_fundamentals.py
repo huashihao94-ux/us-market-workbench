@@ -259,6 +259,23 @@ def extract_financials(cik):
         out["debt"] = round((long_d+cur_d+short_d)/100_000_000, 5)
         detail["debt"] = {"end": max(found[x]["end"] for x in ("longDebt","currentDebt","shortDebt") if x in found),
                           "note": "根据已报告有息债务项目合计，可能遗漏租赁负债及部分其他借款"}
+    # Five complete SEC fiscal years are needed for four historical
+    # year-over-year intervals / a 4-year CAGR. Keep six to expose history
+    # without silently replacing missing fiscal years with estimates.
+    annual_data = {}
+    for label, tags, unit, divisor in (
+        ("netIncome", NET_INCOME, USD, 100_000_000),
+        ("revenue", REVENUE, USD, 100_000_000),
+        ("eps", EPS, USD_SHARE, 1),
+    ):
+        series = annual_history(facts, tags, unit)[:6]
+        if series:
+            annual_data[label] = [
+                {"end": end, "value": round(v / divisor, 5)}
+                for end, v in series
+            ]
+    if annual_data:
+        out["annualHistory"] = annual_data
     rev_hist = annual_history(facts, REVENUE, USD)
     if len(rev_hist) >= 2 and rev_hist[1][1] > 0:
         out["historicalRevenueGrowth"] = round((rev_hist[0][1]/rev_hist[1][1]-1)*100, 2)

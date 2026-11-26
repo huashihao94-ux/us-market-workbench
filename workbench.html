@@ -25,6 +25,14 @@ main{max-width:1450px;margin:auto;padding:22px 15px 50px}h1{font-size:26px;line-
 .growth-table th{font-size:12px;color:#c1d8e9;background:#102139}
 .growth-table td.num{font-variant-numeric:tabular-nums;font-weight:750;font-size:16px;color:#f0f8ff}
 .growth-table tbody tr:last-child td{background:#1d1a37}
+.chart-legend{display:flex;gap:15px;flex-wrap:wrap;color:#bfd2e2;font-size:12px;margin:5px 0 10px}
+.chart-legend span::before{content:"";display:inline-block;width:19px;height:3px;vertical-align:middle;margin-right:6px;border-radius:2px}
+.legend-close::before{background:#79d9e7}
+.legend-ma50::before{background:#ffcb89}
+.legend-ma200::before{background:#bba8ff}
+.categories{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media(max-width:1100px){.categories{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:830px){.categories{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -35,14 +43,14 @@ main{max-width:1450px;margin:auto;padding:22px 15px 50px}h1{font-size:26px;line-
 <button id="refreshAll" type="button">↻ 一键刷新三类数据</button>
 </nav></header>
 <main>
-<div class="intro"><h1>四类股票观察区</h1><p class="muted">估值比较不再使用横向柱形图；优秀成长股新增逐年利润增长折线图及数值表，显示三年历史实际＋下一财年预测，与30%标准直接比较。</p></div>
+<div class="intro"><h1>五类股票观察区</h1><p class="muted">优秀成长股增加TTM PE 70—90倍硬标准；烟蒂股结合Michael Burry式资产与现金流折价研究、日线低位走势；消费股独立管理。</p></div>
 <div class="notice">股价为最近成功取得的美股日线收盘价，不是盘中实时行情。SEC财报数据和你的未来增长率预测分开显示；自动数据缺失时显示「—」，不会伪造。</div>
 <section class="panel">
 <h2>搜索股票名称，选择代码并加入观察区</h2>
 <div class="searchline">
 <div class="field searchblock"><span>股票名字优先模糊搜索；找不到再按代码</span><input id="query" autocomplete="off" aria-autocomplete="list" placeholder="Uber、NVIDIA、NerdWallet、苹果……"><div id="suggestions" class="suggestions" hidden></div></div>
 <label class="field"><span>股票分类（巨无霸会自动识别）</span><select id="newType">
-<option value="growth">优秀成长股</option><option value="cigar">烟蒂股</option><option value="small">小市值公司</option><option value="giant">巨无霸</option>
+<option value="growth">优秀成长股</option><option value="cigar">烟蒂股</option><option value="consumer">消费股</option><option value="small">小市值公司</option><option value="giant">巨无霸</option>
 </select></label>
 <button class="primary" id="addStock" type="button" disabled>＋ 加入观察区</button>
 </div>
@@ -56,8 +64,8 @@ main{max-width:1450px;margin:auto;padding:22px 15px 50px}h1{font-size:26px;line-
 <p id="saveInfo" class="small muted">保留旧版股票观察记录，存于当前浏览器。切换设备需导入JSON备份，尚无账号同步。</p></section>
 <section class="panel" id="detail"><div class="empty">请选择一只股票查看详细数据。</div></section>
 </div>
-<div class="footnote">四个主分类：巨无霸、优秀成长股、烟蒂股、小市值公司。巨无霸市值门槛为严格大于5000亿美元。TTM PE≤20倍优选；20倍以上、25倍以内属于可接受区间；超过25倍偏高。优秀成长股参考市值20—999亿美元，最近三个披露财年的净利润同比和下一财年预计增速各≥30%才算硬标准达标；历史年报与手填预测明确区分。长期利润增长率g仍单独用于PE估值参考。所有估值仅用于投资研究。</div>
+<div class="footnote">五个主分类：巨无霸、优秀成长股、烟蒂股、消费股、小市值公司。巨无霸市值门槛为严格大于5000亿美元，TTM PE≤20倍优选，20—25倍可接受。优秀成长股市值20—999亿美元、TTM PE≥70且<90、最近三年净利润逐年增长及下一财年预估各≥30%，缺数据不算达标。烟蒂股的Burry参考基于他早年的公开文章，EV/EBITDA无统一硬门槛，技术图形也不是投资建议。消费股由你自行设定估值目标。所有数据用于研究。</div>
 </main>
-<script src="stock_pool_v3.js?v=20261126-growth-tz" defer></script><script src="refresh_center.js?v=20261125b" defer></script>
+<script src="stock_pool_v3.js?v=20261126-burry-consumer" defer></script><script src="refresh_center.js?v=20261125b" defer></script>
 </body>
 </html>

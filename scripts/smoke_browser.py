@@ -75,6 +75,11 @@ def us_test(page):
             assert page.locator("#detail .growth-table tbody tr").count()==4,(ticker,"three actual + one forecast")
             assert "30%硬标准" in page.locator("#detail").inner_text()
             assert "成长股TTM PE硬标准" in detail and "70倍" in detail and "90倍" in detail
+            assert "未来平均每年利润增速 g" not in detail
+            assert page.locator('input[data-field="growth"]').count()==0
+            if ticker=="UBER":
+                actual=page.locator("#detail .growth-table tbody").inner_text()
+                assert all(x in actual for x in ("2023","扭亏为盈","2024","422.3%","98.56","2025","2.0%")),(ticker,actual)
             forecast=page.locator('input[data-field="forecastGrowth"]')
             forecast.fill("35")
             forecast.press("Tab")

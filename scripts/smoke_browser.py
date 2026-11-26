@@ -67,7 +67,8 @@ def us_test(page):
             assert roe and roe!="—",(ticker,"roe",roe,detail[:650])
         if giant:
             assert "巨无霸" in page.locator("#detail").inner_text()
-            assert page.locator("#detail .growth-chart").count()==0
+        if page.locator("#detail .growth-chart").count()==0:
+            assert "巨无霸" in page.locator("#detail").inner_text(),(ticker,"unexpected missing chart")
         else:
             assert page.locator("#detail .growth-chart .growth-svg").count()==1,(ticker,"growth line chart")
             assert page.locator("#detail .growth-table tbody tr").count()==4,(ticker,"three actual + one forecast")

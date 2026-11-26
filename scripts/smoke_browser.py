@@ -82,7 +82,7 @@ def us_test(page):
             assert "35.0%" in forecast_row and "≥ 30%" in forecast_row,(ticker,forecast_row)
         results.append({"ticker":ticker,"price":price,"cap":cap,"ttm_eps":eps,"roe":roe,"label":label[:135]})
     print("US_STOCKS "+json.dumps(results,ensure_ascii=False),flush=True)
-    # A consumer stock is user-classified (no invented universal thresholds).
+    # Consumer screens use the user's handwritten forward-EPS and ROE>20 rules.
     # Burry's cigar method must expose valuation inputs even before its first
     # one-year daily price-history cache has been regenerated.
     for ticker,kind,required in (
@@ -100,8 +100,17 @@ def us_test(page):
         detail=page.locator("#detail").inner_text()
         assert required in detail,(ticker,kind,detail[:1000])
         if kind=="consumer":
-            assert "你设定的ROE下限" in detail
-            assert page.locator('input[data-field="consumerRoeMin"]').count()==1
+            assert "消费股：ROE硬标准" in detail
+            assert "前瞻PE ≤ 合理PE" in detail
+            assert "机构年度EPS平均预测" in detail
+            assert page.locator('input[data-field="consumerForecastEPS"]').count()==1
+            assert page.locator('input[data-field="consumerGrowth"]').count()==1
+            page.locator('input[data-field="consumerForecastEPS"]').fill("2.81")
+            page.locator('input[data-field="consumerForecastEPS"]').press("Tab")
+            page.locator('input[data-field="consumerGrowth"]').fill("5")
+            page.locator('input[data-field="consumerGrowth"]').press("Tab")
+            updated=page.locator("#detail").inner_text()
+            assert "10＋2×5.0% = 20.00倍" in updated,updated[:2000]
         else:
             assert "Burry：现价相对52周低点" in detail
             assert "Michael Burry 参考：日线位置与低位支撑" in detail

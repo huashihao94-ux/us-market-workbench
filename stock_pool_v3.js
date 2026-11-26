@@ -496,7 +496,9 @@ function normalizeRows(rows){
  }
 }
 async function getData(file){
- const urls=[BASE+file+"?v="+Date.now(),file+"?v="+Date.now()];
+ // Prefer the version actually published alongside this page. GitHub\'s raw
+ // cache can briefly lag the successful Pages deployment after a refresh.
+ const urls=[file+"?v="+Date.now(),BASE+file+"?v="+Date.now()];
  for(const url of urls){try{const r=await fetch(url,{cache:"no-store"});if(r.ok)return await r.json()}catch{}}
  throw Error("数据文件获取失败："+file);
 }

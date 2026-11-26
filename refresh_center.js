@@ -22,7 +22,9 @@ const current={};
 function newOrSame(name,stamp){current[name]=e(stamp);return !earlier[name]?"首次检查":earlier[name]===current[name]?"与上次检查相同（未发布新文件）":"比上次检查有新发布的数据";}
 async function file(name){
  let error=null;
- for(const url of [ROOT+name+"?fresh="+Date.now(),name+"?fresh="+Date.now()]){
+ // Read this Pages deployment first, with GitHub raw as a network fallback.
+ // The raw CDN may return the previous commit even after Pages is updated.
+ for(const url of [name+"?fresh="+Date.now(),ROOT+name+"?fresh="+Date.now()]){
   try{
    const ctrl=new AbortController();const stop=setTimeout(()=>ctrl.abort(),16000);
    try{const r=await fetch(url,{cache:"no-store",signal:ctrl.signal});if(!r.ok)throw Error("HTTP "+r.status);return await r.json();}

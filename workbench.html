@@ -15,6 +15,16 @@ main{max-width:1450px;margin:auto;padding:22px 15px 50px}h1{font-size:26px;line-
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.metric{background:#0c1929;border:1px solid #30445c;border-radius:10px;padding:11px;min-width:0}.metric span{display:block;font-size:12px;color:var(--muted)}.metric strong{display:block;font-size:19px;margin:5px 0;word-break:break-word}.metric small{font-size:11px;color:#90aabf}.note{color:var(--muted);font-size:12px;margin-top:8px}
 .compare-list{display:grid;gap:9px}.comparison{display:grid;grid-template-columns:minmax(160px,1.4fr) minmax(135px,1fr) auto;align-items:center;gap:8px;background:#0f1d30;border:1px solid #30445c;border-radius:10px;padding:13px}.comparison strong{font-size:14px}.comparison .compare-value{font-size:18px;font-weight:750;color:#f3f9fe;text-align:right}.badge{border:1px solid #506078;border-radius:6px;padding:4px 8px;font-size:12px;white-space:nowrap;background:#263549}.badge.pass{border-color:#28644e;background:#153b32;color:#93efc9}.badge.fail{border-color:#6f3d49;background:#422532;color:#ffb2b9}.badge.neutral{border-color:#655239;background:#373226;color:#eacf9e}.editor{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}textarea{resize:vertical}.footnote{margin-top:25px;padding-top:13px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
 @media(max-width:1000px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.comparison{grid-template-columns:1fr auto}}@media(max-width:830px){.layout{grid-template-columns:1fr}.categories{grid-template-columns:repeat(2,minmax(0,1fr))}.cat small{min-height:0}}@media(max-width:570px){.searchline{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.comparison{grid-template-columns:1fr}.comparison .compare-value{text-align:left}.editor{grid-template-columns:1fr 1fr}.panel{padding:13px}main{padding:14px 10px 35px}}
+
+/* 优秀成长股：年度增长轨迹，仅用折线图呈现有时序的指标 */
+.growth-chart{margin:12px 0 8px;border:1px solid #31536d;background:linear-gradient(160deg,#10253a,#0b1829);border-radius:12px;padding:12px 8px 4px;overflow-x:auto}
+.growth-svg{display:block;width:100%;min-width:560px;height:auto}
+.growth-table-wrap{overflow-x:auto;margin:10px 0}
+.growth-table{border-collapse:collapse;width:100%;min-width:490px}
+.growth-table th,.growth-table td{padding:9px 12px;border-bottom:1px solid #30445c;text-align:left}
+.growth-table th{font-size:12px;color:#c1d8e9;background:#102139}
+.growth-table td.num{font-variant-numeric:tabular-nums;font-weight:750;font-size:16px;color:#f0f8ff}
+.growth-table tbody tr:last-child td{background:#1d1a37}
 </style>
 </head>
 <body>
@@ -25,7 +35,7 @@ main{max-width:1450px;margin:auto;padding:22px 15px 50px}h1{font-size:26px;line-
 <button id="refreshAll" type="button">↻ 一键刷新三类数据</button>
 </nav></header>
 <main>
-<div class="intro"><h1>四类股票观察区</h1><p class="muted">不再使用横向柱形图。只看当前市值、PE、ROE和财报实际数值，以及与你的标准相比是小于、等于还是大于。</p></div>
+<div class="intro"><h1>四类股票观察区</h1><p class="muted">估值比较不再使用横向柱形图；优秀成长股新增逐年利润增长折线图及数值表，显示三年历史实际＋下一财年预测，与30%标准直接比较。</p></div>
 <div class="notice">股价为最近成功取得的美股日线收盘价，不是盘中实时行情。SEC财报数据和你的未来增长率预测分开显示；自动数据缺失时显示「—」，不会伪造。</div>
 <section class="panel">
 <h2>搜索股票名称，选择代码并加入观察区</h2>
@@ -46,8 +56,8 @@ main{max-width:1450px;margin:auto;padding:22px 15px 50px}h1{font-size:26px;line-
 <p id="saveInfo" class="small muted">保留旧版股票观察记录，存于当前浏览器。切换设备需导入JSON备份，尚无账号同步。</p></section>
 <section class="panel" id="detail"><div class="empty">请选择一只股票查看详细数据。</div></section>
 </div>
-<div class="footnote">四个主分类：巨无霸、优秀成长股、烟蒂股、小市值公司。巨无霸市值门槛为严格大于5000亿美元。TTM PE≤20倍优选；20倍以上、25倍以内属于可接受区间；超过25倍偏高。成长股用你自己预测的未来利润增长率作估值参考，历史营收增长不能直接当作未来预测。所有估值仅用于投资研究。</div>
+<div class="footnote">四个主分类：巨无霸、优秀成长股、烟蒂股、小市值公司。巨无霸市值门槛为严格大于5000亿美元。TTM PE≤20倍优选；20倍以上、25倍以内属于可接受区间；超过25倍偏高。优秀成长股参考市值20—999亿美元，最近三个披露财年的净利润同比和下一财年预计增速各≥30%才算硬标准达标；历史年报与手填预测明确区分。长期利润增长率g仍单独用于PE估值参考。所有估值仅用于投资研究。</div>
 </main>
-<script src="stock_pool_v3.js" defer></script><script src="refresh_center.js?v=20261125b" defer></script>
+<script src="stock_pool_v3.js?v=20261126-growth" defer></script><script src="refresh_center.js?v=20261125b" defer></script>
 </body>
 </html>

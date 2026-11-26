@@ -102,7 +102,7 @@ def us_test(page):
         if kind=="consumer":
             assert "消费股：ROE硬标准" in detail
             assert "前瞻PE ≤ 合理PE" in detail
-            assert "机构年度EPS平均预测" in detail
+            assert "分析师年度EPS平均预测" in detail
             assert page.locator('input[data-field="consumerForecastEPS"]').count()==1
             assert page.locator('input[data-field="consumerGrowth"]').count()==1
             page.locator('input[data-field="consumerForecastEPS"]').fill("2.81")

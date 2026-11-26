@@ -11,6 +11,7 @@ on:
       - 'refresh_center.js'
       - 'a_share_f10.js'
       - 'scripts/smoke_browser.py'
+      - 'scripts/test_stock_models.js'
       - '.github/workflows/test_browser.yml'
 jobs:
   smoke:
@@ -21,6 +22,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Validate growth and Burry valuation logic
+        run: node scripts/test_stock_models.js
       - name: Install Playwright and browser
         run: |
           python -m pip install "playwright>=1.51,<2"

@@ -67,6 +67,16 @@ def us_test(page):
             assert roe and roe!="—",(ticker,"roe",roe,detail[:650])
         if giant:
             assert "巨无霸" in page.locator("#detail").inner_text()
+            assert page.locator("#detail .growth-chart").count()==0
+        else:
+            assert page.locator("#detail .growth-chart .growth-svg").count()==1,(ticker,"growth line chart")
+            assert page.locator("#detail .growth-table tbody tr").count()==4,(ticker,"three actual + one forecast")
+            assert "30%硬标准" in page.locator("#detail").inner_text()
+            forecast=page.locator('input[data-field="forecastGrowth"]')
+            forecast.fill("35")
+            forecast.press("Tab")
+            forecast_row=page.locator("#detail .growth-table tbody tr").last.inner_text()
+            assert "35.0%" in forecast_row and "≥ 30%" in forecast_row,(ticker,forecast_row)
         results.append({"ticker":ticker,"price":price,"cap":cap,"ttm_eps":eps,"roe":roe,"label":label[:135]})
     print("US_STOCKS "+json.dumps(results,ensure_ascii=False),flush=True)
     check_refresh(page,"us-stock-pool")

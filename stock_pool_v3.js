@@ -20,6 +20,7 @@ const FALLBACK=[
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const value=x=>x===undefined||x===null||String(x).trim()===""?null:(Number.isFinite(Number(x))?Number(x):null);
+const chinaTime=iso=>iso?new Date(iso).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai"}):"未知";
 const amount=(x,d=2)=>Number.isFinite(x)?x.toLocaleString("zh-CN",{minimumFractionDigits:d,maximumFractionDigits:d}):"—";
 const badge=(text,color="plain")=>'<span class="badge '+color+'">'+esc(text)+'</span>';
 const stocks=new Map(), universe=new Map(), queryPromises=new Map();
@@ -285,7 +286,7 @@ function renderDetails(){
  const html='<div class="detail-title"><div><h2>'+esc(s.name)+' <span class="muted">'+esc(s.ticker)+'</span></h2>'+
   '<div class="small muted">分类：'+esc(TYPE[s.type].name)+' · 股价来源：'+esc(origin)+'</div></div>'+
   '<div class="buttons"><button id="reloadOne" type="button">↻ 更新该股票数据</button><button id="removeOne" type="button" class="danger">移出观察区</button></div></div>'+
-  '<div class="datebox"><strong>行情日期：'+esc(ptext)+'</strong><span>公开数据缓存生成：'+esc(cacheDate||"未知")+'</span>'+
+  '<div class="datebox"><strong>行情日期：'+esc(ptext)+'</strong><span>公开数据缓存生成（北京时间）：'+esc(chinaTime(cacheDate))+'</span>'+
   '<span>财报截止：'+esc(fm.ttmEPS?.end||fm.eps?.end||fm.revenue?.end||"未知")+' · SEC提交：'+esc(filed)+'</span></div>'+
   '<h3>现在的真实指标</h3><div class="metrics">'+
   cell("最近已取得收盘价",f.p,"美元",ptext)+
@@ -344,7 +345,7 @@ async function init(){
   const data=results[0].value;cacheDate=data.updatedAt||"";
   for(const [ticker,r] of Object.entries(data.stocks||{}))stocks.set(ticker.toUpperCase(),r);
   cacheCount=stocks.size;hasLoaded=true;
-  $("dataStatus").textContent="已读取 "+cacheCount+"只自动行情/财报缓存；生成于 "+(cacheDate?new Date(cacheDate).toLocaleString("zh-CN"):"未知")+
+  $("dataStatus").textContent="已读取 "+cacheCount+"只自动行情/财报缓存；生成于 "+chinaTime(cacheDate)+
   "。没有完整数据的股票可单独查询。";
  }else $("dataStatus").textContent="行情缓存未能加载；正在使用手填数据和按需查询。";
  if(results[1].status==="fulfilled"){

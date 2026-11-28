@@ -18,36 +18,45 @@ const make=new Function("ticker","type","recordData","inputs","cap","pe","price"
    historyAfterPartialRefresh:mergeAnnualHistory(recordData.annualHistory,{netIncome:[]})};
  `);
 
-const income=[14,10,7,5].map((v,i)=>({
+const income=[14,10,7,5,3].map((v,i)=>({
  end:String(2025-i)+"-12-31",value:v
 }));
-const annual={annualHistory:{netIncome:income}};
+const annual={annualHistory:{netIncome:income,revenue:income,eps:income}};
 for(const [pe,expected] of [[69.99,false],[70,true],[89.99,true],[90,false],[null,null]]){
- const m=make("TEST","growth",annual,{forecastGrowth:35},200,pe,80).growth;
+ const m=make("TEST","growth",annual,{},200,pe,80).growth;
  assert.equal(m.peOk,expected,`PE=${pe}`);
  assert.equal(m.overall,expected,`overall PE=${pe}`);
 }
-assert.equal(make("TEST","growth",annual,{forecastGrowth:35},200,80,80).growth.overall,true);
-assert.equal(make("TEST","growth",annual,{forecastGrowth:29},200,80,80).growth.overall,false);
-assert.equal(make("TEST","growth",annual,{forecastGrowth:35},1000,80,80).growth.overall,false);
+assert.equal(make("TEST","growth",annual,{},200,80,80).growth.overall,true);
+assert.equal(make("TEST","growth",annual,{forecastGrowth:-50},200,80,80).growth.overall,true,
+ "saved legacy forecasts must not affect the historical growth screen");
+assert.equal(make("TEST","growth",annual,{},1000,80,80).growth.overall,false);
+assert.deepEqual(make("TEST","growth",annual,{},200,80,80).growth.series.map(x=>x.year),
+ ["2022","2023","2024","2025"],"four actual years, no future estimates");
+assert.equal(make("TEST","growth",{annualHistory:{netIncome:income}}, {},200,80,80).growth.pastOk,null,
+ "net profit history cannot be mistaken for EPS history");
 
 // The deployed SEC cache already includes Uber's historic profits; all years
 // must survive a partial on-demand refresh and display as annual year labels.
 const uber=require(path.resolve(__dirname,"..","fundamentals.json")).stocks.UBER;
 assert.ok(uber?.annualHistory?.netIncome?.length>=5,"Uber SEC history must be cached");
 const u=make("UBER","growth",uber,{},100,39.03,66.35);
-assert.deepEqual(u.growth.series.map(x=>x.year),["2023","2024","2025","2026"]);
-assert.equal(u.growth.series[0].rate,null,"loss-to-profit is not a percent");
-assert.match(u.growth.series[0].reason,/扭亏为盈/);
-assert.ok(Math.abs(u.growth.series[1].rate-422.31)<0.05);
-assert.ok(Math.abs(u.growth.series[2].rate-2.0)<0.01);
-assert.ok(u.growthHtml.includes("422.3%"));
+assert.deepEqual(u.growth.series.map(x=>x.year),["2022","2023","2024","2025"]);
+assert.equal(u.growth.series[1].rate,null,"loss-to-profit EPS cannot be a percent");
+assert.match(u.growth.series[1].reason,/扭亏为盈/);
+assert.ok(Math.abs(u.growth.series[2].profitRate-422.31)<0.05);
+assert.ok(Math.abs(u.growth.series[3].profitRate-2.0)<0.01);
+assert.ok(Math.abs(u.growth.series[2].rate-(4.56/0.87-1)*100)<0.1);
+assert.ok(u.growthHtml.includes("422.3%"),"profit history remains visible as supplementary data");
 assert.ok(u.growthHtml.includes("2.0%"));
 assert.ok(u.growthHtml.includes("98.56"));
+assert.ok(u.growthHtml.includes("年度EPS及同比"));
+assert.ok(!u.growthHtml.includes("2026"),"no automatic future-year forecast");
 assert.deepEqual(u.historyAfterPartialRefresh.netIncome,uber.annualHistory.netIncome,
  "empty SEC refresh must retain full yearly history");
 assert.ok(!src.includes("未来平均每年利润增速 g"),"obsolete growth g comparison must be removed");
 assert.ok(!src.includes("未来长期预估年利润增长率 g"),"obsolete growth g editor must be removed");
+assert.ok(!src.includes('editor("下一财年预估净利润增长率'),"remove growth-specific forecast editor");
 
 const prices=Array.from({length:220},(_,i)=>[
  new Date(Date.UTC(2025,0,1+i)).toISOString().slice(0,10),
@@ -82,4 +91,4 @@ assert.equal(make("KO","consumer",{roe:30},consumerInputs,260,25,56.2).consumer.
 assert.equal(make("KO","consumer",{roe:30},{consumerGrowth:5},260,25,50).consumer.overall,null,"missing analyst EPS cannot pass");
 assert.equal(make("KO","consumer",{roe:30},{consumerForecastEPS:2.81},260,25,50).consumer.overall,null,"missing growth g cannot pass");
 assert.equal(make("KO","consumer",{roe:30},{consumerForecastEPS:-1,consumerGrowth:5},260,25,50).consumer.peOk,false,"non-positive earnings do not pass");
-console.log("PASS: growth PE [70,90), Uber yearly profit history, partial-refresh preservation, Burry, consumer PE=10+2g and ROE>20%");
+console.log("PASS: four actual EPS growth years, Uber profit/revenue context, legacy forecasts ignored, Burry, consumer PE=10+2g and ROE>20%");

@@ -74,7 +74,12 @@ def us_test(page):
             assert page.locator("#detail .growth-chart .growth-svg").count()==1,(ticker,"growth line chart")
             assert page.locator("#detail .growth-table tbody tr").count()==4,(ticker,"four actual fiscal years")
             assert "EPS参考 30%" in page.locator("#detail .growth-chart .growth-svg").text_content()
-            assert "成长股TTM PE硬标准" in detail and "70倍" in detail and "90倍" in detail
+            assert "TTM PE：你的70—90倍区间" in detail and "70" in detail and "90" in detail
+            assert page.locator("#detail .growth-eval-group").count()==3,(ticker,"three evaluation layers")
+            assert all(label in detail for label in (
+                "① 成长性：增长是否持续", "② 增长质量：赚的钱是否扎实",
+                "③ 估值位置：现在贵不贵", "过去3年营收复合年增长率（CAGR）",
+                "自由现金流率（FCF÷营收）", "按你原标准：三项综合硬判断")),ticker
             assert "未来平均每年利润增速 g" not in detail
             assert page.locator('input[data-field="growth"]').count()==0
             assert page.locator('input[data-field="forecastGrowth"]').count()==0

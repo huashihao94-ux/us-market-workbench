@@ -72,19 +72,18 @@ def us_test(page):
             assert "巨无霸" in page.locator("#detail").inner_text(),(ticker,"unexpected missing chart")
         else:
             assert page.locator("#detail .growth-chart .growth-svg").count()==1,(ticker,"growth line chart")
-            assert page.locator("#detail .growth-table tbody tr").count()==4,(ticker,"three actual + one forecast")
-            assert "30%硬标准" in page.locator("#detail").inner_text()
+            assert page.locator("#detail .growth-table tbody tr").count()==4,(ticker,"four actual fiscal years")
+            assert "EPS参考 30%" in page.locator("#detail .growth-chart .growth-svg").text_content()
             assert "成长股TTM PE硬标准" in detail and "70倍" in detail and "90倍" in detail
             assert "未来平均每年利润增速 g" not in detail
             assert page.locator('input[data-field="growth"]').count()==0
+            assert page.locator('input[data-field="forecastGrowth"]').count()==0
+            assert "下一财年预估净利润增长" not in detail
+            assert "年度EPS及同比" in detail and "营业收入及同比" in detail and "净利润及同比" in detail
             if ticker=="UBER":
                 actual=page.locator("#detail .growth-table tbody").inner_text()
-                assert all(x in actual for x in ("2023","扭亏为盈","2024","422.3%","98.56","2025","2.0%")),(ticker,actual)
-            forecast=page.locator('input[data-field="forecastGrowth"]')
-            forecast.fill("35")
-            forecast.press("Tab")
-            forecast_row=page.locator("#detail .growth-table tbody tr").last.inner_text()
-            assert "35.0%" in forecast_row and "≥ 30%" in forecast_row,(ticker,forecast_row)
+                assert all(x in actual for x in ("2022","2023","扭亏为盈","2024","422.3%","98.56","2025","2.0%")),(ticker,actual)
+                assert "2026" not in actual,(ticker,"no future-year forecast",actual)
         results.append({"ticker":ticker,"price":price,"cap":cap,"ttm_eps":eps,"roe":roe,"label":label[:135]})
     print("US_STOCKS "+json.dumps(results,ensure_ascii=False),flush=True)
     # Consumer screens use the user's handwritten forward-EPS and ROE>20 rules.

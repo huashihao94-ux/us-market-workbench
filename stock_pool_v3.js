@@ -359,7 +359,8 @@ function statuses(s,f){
      "你的原定硬标准：四个已披露财年的EPS同比每年都至少30%，缺少上一年基数不算自动达标；无当年/明年预测",
      g.pastOk===null?"待数据":g.pastOk?"已达标":"未达标"));
    growthRows.push(keyLine("过去3年EPS复合年增长率（CAGR）",
-     g.epsCagr===null?"不适用／数据不足":amount(g.epsCagr,1)+"%/年",
+     g.epsCagr===null?(g.series.some(x=>x.eps!==null&&x.eps<=0)?
+       "历史EPS含亏损，CAGR不适用":"年度EPS数据不足"):amount(g.epsCagr,1)+"%/年",
      "四个真实财年首尾计算，跨3个年度间隔；历年EPS都须为正。辅助看整体趋势，不能代替逐年≥30%的硬标准",
      g.epsCagr===null?"不强算":"辅助参考"));
    growthRows.push(keyLine("过去3年营收复合年增长率（CAGR）",
@@ -391,13 +392,13 @@ function statuses(s,f){
    valuationRows.push(keyLine("市值：你的20—999亿美元区间",capPosition,
      "你的原定硬标准；市值大小本身并不等于企业成长质量",
      g.capOk===null?"待数据":g.capOk?"已达标":"未达标"));
-   const pePosition=f.peTTM===null?"TTM PE待财报":
+   const pePosition=f.peTTM===null?(f.eps!==null&&f.eps<=0?"TTM EPS非正，PE不适用":"TTM PE待财报"):
      f.peTTM<GROWTH_PE_MIN?amount(f.peTTM)+" < 70":
      f.peTTM<GROWTH_PE_MAX?"70 ≤ "+amount(f.peTTM)+" < 90":
      amount(f.peTTM)+" ≥ 90";
    valuationRows.push(keyLine("TTM PE：你的70—90倍区间",pePosition+(f.peTTM===null?"":" 倍"),
      "你的原定硬标准：70 ≤ 当前TTM PE < 90；高PE不自动代表优质，必须配合成长性和现金流",
-     g.peOk===null?"待数据":g.peOk?"已达标":"未达标"));
+     g.peOk===null?(f.eps!==null&&f.eps<=0?"亏损不适用":"待数据"):g.peOk?"已达标":"未达标"));
    if(f.ps!==null)valuationRows.push(keyLine("当前市销率（PS）",
      amount(f.ps,2)+" 倍","当前市值÷最近完整年度营业收入；辅助比较，不设统一硬阈值","估值参考"));
    if(f.peTTM===null&&f.peAnnual!==null)

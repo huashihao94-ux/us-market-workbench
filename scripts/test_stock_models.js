@@ -5,6 +5,12 @@ const path=require("node:path");
 const assert=require("node:assert/strict");
 
 const src=fs.readFileSync(path.resolve(__dirname,"..","stock_pool_v3.js"),"utf8");
+const tracked=require(path.resolve(__dirname,"..","tracked_symbols.json"));
+assert.ok(tracked.includes("ALAB"),"ALAB must be picked up by the scheduled backend collector");
+assert.ok(tracked.includes("COST"),"Costco must remain scheduled for SEC and quote refresh");
+assert.match(src,/\["Costco Wholesale Corporation","COST","开市客 好市多 Costco",909832\]/,
+ "Chinese Costco name aliases must be searchable");
+assert.match(src,/async function refreshOne\(ticker\)/,"single-stock refresh must read the published backend cache first");
 const start=src.indexOf("const KEY=");
 const end=src.indexOf("function effectiveType(");
 const comparisonStart=src.indexOf("function keyLine(");

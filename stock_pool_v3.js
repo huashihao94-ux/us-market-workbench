@@ -18,7 +18,8 @@ const FALLBACK=[
  ["Amazon.com Inc.","AMZN","亚马逊",1018724],["Alphabet Inc.","GOOGL","谷歌",1652044],
  ["Tesla Inc.","TSLA","特斯拉",1318605],["Meta Platforms","META","Meta",1326801],
  ["Berkshire Hathaway","BRK-B","伯克希尔",1067983],["Netflix","NFLX","奈飞",1065280],
- ["Coca-Cola","KO","可口可乐",21344]
+ ["Coca-Cola","KO","可口可乐",21344],
+ ["Costco Wholesale Corporation","COST","开市客 好市多 Costco",909832]
 ];
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -515,7 +516,7 @@ function renderDetails(){
  const filed=fm.ttmEPS?.filed||((!ttmEnd||ttmEnd===annualEnd)?(fm.eps?.filed||fm.revenue?.filed):null)||"本期报告提交日期尚未同步";
  const origin=r.priceSource||oneField(s,"price").origin;
  const ptext=r.priceDate||"日期未知";
- const secs=r.financialMeta?.source||"SEC XBRL待查询或缺失";
+ const secs=r.financialMeta?.source||"尚未同步到后台SEC财报缓存；公司可能已有公开年报";
  const idx=universe.get(s.ticker);
  const foreign=r.financialError||r.priceError||"";
  const editor=(label,key,tip,def="")=>'<label class="field"><span>'+esc(label)+'</span><input data-field="'+esc(key)+'" value="'+esc(s.inputs?.[key]??def)+'" type="number" step="any" placeholder="'+esc(tip)+'"></label>';
@@ -560,7 +561,7 @@ function renderDetails(){
   '<h3>个人观察笔记</h3><textarea id="memo" rows="3" placeholder="记录你看好的原因和需要验证的风险">'+esc(s.inputs?.memo||"")+'</textarea>'+
   '<div class="small muted">任何无法可靠取得的指标都会显示「—」，不会假定为0或编造数据。黄色标线和横向进度条已移除。</div>';
  $("detail").innerHTML=html;
- $("reloadOne").addEventListener("click",()=>loadOnDemand(s.ticker,true));
+ $("reloadOne").addEventListener("click",()=>refreshOne(s.ticker));
  $("removeOne").addEventListener("click",()=>{
   items=items.filter(x=>x.ticker!==s.ticker);selected=items.find(x=>x.type===currentType)?.ticker||null;persist();render();
  });
@@ -639,7 +640,8 @@ function drawResults(){
 }
 function showSelection(){
  if(!picked)return;
- const d=stocks.get(picked.ticker),cap=d?.price>0&&d?.shares>0?d.price*d.shares:null;
+ const d=stocks.get(picked.ticker),cap=d?.price>0&&d?.shares>0?d.price*d.shares:
+  value(d?.marketCap)>0?value(d.marketCap):null;
  $("selection").innerHTML='<strong>'+esc(picked.name)+' · '+esc(picked.ticker)+'</strong><div>股价：'+
  (d?.price>0?"$"+amount(d.price):"等待查询")+" · 日期："+esc(d?.priceDate||"待查询")+
  " · 市值："+(cap===null?"待查询":amount(cap,0)+"亿美元")+
@@ -648,6 +650,7 @@ function showSelection(){
    $("selection").innerHTML+="<small>市值＞5000亿美元，自动归入巨无霸。</small>";}
  else {$("newType").disabled=false;if($("newType").value==="giant")$("newType").value="growth";
    $("selection").innerHTML+="<small>"+(cap===null?"市值暂无法核实；可以先作为非巨无霸观察。":"未超过5000亿美元，可选择其他类别。")+"</small>";}
+ if(!d?.financialMeta)$("selection").innerHTML+="<small>尚无已同步的SEC年报缓存；临时公开接口查询可能失败，并不表示该公司没有财报。</small>";
  $("addStock").disabled=false;
 }
 async function chooseWithData(t){
@@ -779,6 +782,29 @@ function fromSecFacts(facts,cik){
 }
 async function jsonFetch(url){
  const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw Error("HTTP "+r.status);return r.json();
+}
+// A GitHub Pages page cannot call SEC's CORS-disabled API reliably. On a
+// manual refresh, prefer the dated file produced by the scheduled GitHub
+// Actions backend; only attempt best-effort browser fetch for uncached stocks.
+async function refreshOne(ticker){
+ $("dataStatus").textContent=ticker+" 正在重读后台已发布的财报和行情…";
+ try{
+  const latest=await getData("fundamentals.json"),next=latest.stocks?.[ticker];
+  if(next){
+   const old=stocks.get(ticker);
+   const newest=old?.priceDate&&next.priceDate&&old.priceDate>next.priceDate?
+    mergeRecords(next,old):mergeRecords(old,next);
+   stocks.set(ticker,newest);
+   cacheDate=latest.updatedAt||cacheDate;
+   cacheCount=Math.max(cacheCount,Object.keys(latest.stocks||{}).length);
+   render();
+   if(newest.price>0&&newest.financialMeta){
+    $("dataStatus").textContent=ticker+" 已读取最新已发布缓存（北京时间 "+chinaTime(cacheDate)+"）；行情不是盘中实时价。";
+    return;
+   }
+  }
+ }catch{}
+ await loadOnDemand(ticker,true);
 }
 async function loadOnDemand(ticker,force=false){
  ticker=ticker.toUpperCase();

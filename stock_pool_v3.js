@@ -6,7 +6,7 @@ const GROWTH_MIN_CAP=20, GROWTH_MAX_CAP=999, GROWTH_RATE=30;
 const GROWTH_PE_MIN=70, GROWTH_PE_MAX=90;
 const CONSUMER_ROE_MIN=20;
 const TYPE={giant:{name:"巨无霸",note:"市值超过5000亿美元，TTM PE分档"},
- growth:{name:"优秀成长股",note:"市值20—999亿 · PE≥70且<90 · 四年增速≥30%"},
+ growth:{name:"优秀成长股",note:"市值20—999亿 · PE≥70且<90 · 历史EPS增速参考≥30%"},
  cigar:{name:"烟蒂股",note:"Burry：现金流与资产折价＋低位技术图"},
  consumer:{name:"消费股",note:"预测PE ≤ 10＋2g · ROE＞20%"},
  small:{name:"小市值公司",note:"PS与未来3—5年PE估值"}};
@@ -52,10 +52,10 @@ function financial(s){
  const yieldPct=p>0&&div!==null?div/p*100:null;
  return {r,p,shares,eps,annualEPS,roe,revenue,income,eq,div,cap,peTTM,peAnnual,ps,pb,yieldPct};
 }
-function annualNetIncomeRows(s){
- const rows=record(s)?.annualHistory?.netIncome||[];
- return (Array.isArray(rows)?rows:[]).map(x=>({end:String(x.end||""),profit:value(x.value)}))
-  .filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.end)&&x.profit!==null)
+function annualRows(s,field){
+ const rows=record(s)?.annualHistory?.[field]||[];
+ return (Array.isArray(rows)?rows:[]).map(x=>({end:String(x.end||""),amount:value(x.value)}))
+  .filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.end)&&x.amount!==null)
   .sort((a,b)=>b.end.localeCompare(a.end)).slice(0,6);
 }
 // A partial SEC refresh must never discard already retrieved fiscal history.
@@ -78,48 +78,51 @@ function mergeAnnualHistory(oldHistory,newHistory){
  }
  return merged;
 }
-function growthModel(s,f){
- const annual=annualNetIncomeRows(s), latest=annual[0]||null;
- const year=latest?Number(latest.end.slice(0,4)):null;
- const actualFour=annual.slice(0,4).reverse();
- const byYear=new Map();
- for(let i=1;i<actualFour.length;i++){
-  const prev=actualFour[i-1],cur=actualFour[i];
-  const days=(Date.parse(cur.end)-Date.parse(prev.end))/86400000;
-  const rate=days>=320&&days<=410&&prev.profit>0?
-   (cur.profit/prev.profit-1)*100:null;
-  byYear.set(cur.end.slice(0,4),{rate,reason:prev.profit<=0?
-   (prev.profit<0&&cur.profit>0?"扭亏为盈（上年亏损，百分比不可比）":"上年净利润非正，不能计算同比"):
-   days<320||days>410?"财年不连续":"资料不足"});
+// Growth based on actual annual reports only. Negative earnings are disclosed
+// but never disguised as a positive percentage growth rate.
+function fiscalChange(rows,year){
+ const curr=rows.find(x=>Number(x.end.slice(0,4))===year);
+ const prev=rows.find(x=>Number(x.end.slice(0,4))===year-1);
+ if(!curr)return {amount:null,rate:null,reason:"该财年暂无年度数据"};
+ if(!prev)return {amount:curr.amount,rate:null,reason:"缺少上一财年基数"};
+ const days=(Date.parse(curr.end)-Date.parse(prev.end))/86400000;
+ if(days<320||days>410)return {amount:curr.amount,rate:null,reason:"财年不连续"};
+ if(prev.amount<=0){
+  let reason="上年基数不为正，不计算普通同比";
+  if(prev.amount<0&&curr.amount>0)reason="扭亏为盈（同比百分比不可比）";
+  else if(prev.amount<0&&curr.amount<0)
+   reason=(curr.amount>prev.amount?"亏损收窄 ":"亏损扩大 ")+
+    amount(Math.abs(curr.amount/prev.amount-1)*100,1)+"%（不是盈利增长率）";
+  return {amount:curr.amount,rate:null,reason};
  }
- const byProfit=new Map(annual.map(x=>[x.end.slice(0,4),x.profit]));
- const series=year!==null?[year-2,year-1,year].map(y=>({
-  year:String(y),kind:"实际",profit:byProfit.get(String(y))??null,rate:byYear.get(String(y))?.rate??null,
-  reason:byYear.get(String(y))?.reason||"缺少可比较的年报"
- })):[{year:"前3年",kind:"实际",profit:null,rate:null,reason:"缺少年报"},
-     {year:"前2年",kind:"实际",profit:null,rate:null,reason:"缺少年报"},
-     {year:"最近年",kind:"实际",profit:null,rate:null,reason:"缺少年报"}];
- const forecast=value(s.inputs?.forecastGrowth),forecastYear=year===null?"下一财年":String(year+1);
- series.push({year:forecastYear,kind:"预测",profit:null,rate:forecast,reason:"需填写预测及其依据"});
+ if(curr.amount<=0)return {amount:curr.amount,rate:null,reason:"由盈转亏／利润归零"};
+ return {amount:curr.amount,rate:(curr.amount/prev.amount-1)*100,reason:""};
+}
+function growthModel(s,f){
+ const histories={eps:annualRows(s,"eps"),revenue:annualRows(s,"revenue"),netIncome:annualRows(s,"netIncome")};
+ const dates=Object.values(histories).flat().map(x=>x.end).sort();
+ const year=dates.length?Number(dates[dates.length-1].slice(0,4)):null;
+ const years=year===null?["前4年","前3年","前2年","最近年"]:
+  [year-3,year-2,year-1,year].map(String);
+ const series=years.map(y=>{
+  const eps=fiscalChange(histories.eps,Number(y));
+  const revenue=fiscalChange(histories.revenue,Number(y));
+  const profit=fiscalChange(histories.netIncome,Number(y));
+  return {year:y,kind:"实际",eps:eps.amount,epsRate:eps.rate,epsReason:eps.reason,
+   revenue:revenue.amount,revenueRate:revenue.rate,revenueReason:revenue.reason,
+   profit:profit.amount,profitRate:profit.rate,profitReason:profit.reason,
+   rate:eps.rate,reason:eps.reason};
+ });
  const capOk=f.cap===null?null:f.cap>=GROWTH_MIN_CAP&&f.cap<=GROWTH_MAX_CAP;
- const historical=series.slice(0,3);
- const badProfit=actualFour.some(x=>x.profit<=0);
- const pastOk=badProfit||historical.some(x=>x.rate!==null&&x.rate<GROWTH_RATE)?false:
-  historical.every(x=>x.rate!==null)?true:null;
- const forecastOk=forecast===null?null:forecast>=GROWTH_RATE;
+ const lossEPS=series.some(x=>x.eps!==null&&x.eps<=0);
+ const pastOk=lossEPS||series.some(x=>x.rate!==null&&x.rate<GROWTH_RATE)?false:
+  series.every(x=>x.rate!==null)?true:null;
  // Only actual trailing-twelve-month P/E counts. Annual P/E cannot silently
  // substitute for a missing TTM denominator.
  const peOk=f.peTTM===null?null:f.peTTM>=GROWTH_PE_MIN&&f.peTTM<GROWTH_PE_MAX;
- const forecastSource=String(s.inputs?.forecastSource||"").trim();
- const overall=[capOk,peOk,pastOk,forecastOk].includes(false)?false:
-  [capOk,peOk,pastOk,forecastOk].every(x=>x===true)?true:null;
- let cagr=null;
- if(annual.length>=5){
-  const end=annual[0],start=annual[4],yrs=(Date.parse(end.end)-Date.parse(start.end))/86400000/365.2425;
-  if(yrs>=3.6&&yrs<=4.4&&annual.slice(0,5).every(x=>x.profit>0))
-   cagr=(Math.pow(end.profit/start.profit,1/yrs)-1)*100;
- }
- return {annual,series,latest,capOk,peOk,pastOk,forecastOk,forecastSource,overall,cagr,forecastYear};
+ const overall=[capOk,peOk,pastOk].includes(false)?false:
+  [capOk,peOk,pastOk].every(x=>x===true)?true:null;
+ return {annual:histories.netIncome,series,year,capOk,peOk,pastOk,overall};
 }
 function consumerModel(s,f){
  const analystEPS=value(s.inputs?.consumerForecastEPS);
@@ -152,38 +155,39 @@ function growthPlot(s,f){
   const prev=g.series[i-1],cur=g.series[i];
   if(prev.rate===null||cur.rate===null)continue;
   lines+='<path d="M'+xs[i-1]+' '+y(prev.rate)+' L'+xs[i]+' '+y(cur.rate)+
-   '" fill="none" stroke="'+(cur.kind==="预测"?"#bba8ff":"#79d9e7")+
-   '" stroke-width="3" stroke-linecap="round"'+(cur.kind==="预测"?' stroke-dasharray="7 5"':"")+'/>';
+   '" fill="none" stroke="#79d9e7" stroke-width="3" stroke-linecap="round"/>';
  }
  const dots=g.series.map((a,i)=>{
-  const c=a.kind==="预测"?"#bba8ff":"#79d9e7";
   return (a.rate===null?
    '<text x="'+xs[i]+'" y="118" text-anchor="middle" fill="#8fa3b7" font-size="'+
    (a.reason.includes("扭亏为盈")?"14":"22")+'">'+
-   (a.reason.includes("扭亏为盈")?"扭亏":"?")+'</text>':
-   '<circle cx="'+xs[i]+'" cy="'+y(a.rate)+'" r="5" fill="'+c+'" stroke="#10192a" stroke-width="2"/>'+
-   '<text x="'+xs[i]+'" y="'+(y(a.rate)-12)+'" text-anchor="middle" fill="'+c+'" font-size="13" font-weight="700">'+
+   (a.reason.includes("扭亏为盈")?"扭亏":a.eps!==null&&a.eps<=0?"亏损":"?")+'</text>':
+   '<circle cx="'+xs[i]+'" cy="'+y(a.rate)+'" r="5" fill="#79d9e7" stroke="#10192a" stroke-width="2"/>'+
+   '<text x="'+xs[i]+'" y="'+(y(a.rate)-12)+'" text-anchor="middle" fill="#79d9e7" font-size="13" font-weight="700">'+
    amount(a.rate,1)+'%</text>')+
    '<text x="'+xs[i]+'" y="224" text-anchor="middle" fill="#eaf3fb" font-size="13">'+esc(a.year)+'</text>'+
-   '<text x="'+xs[i]+'" y="244" text-anchor="middle" fill="#a6b5c5" font-size="11">'+(a.kind==="预测"?"预估":"财报")+'</text>';
+   '<text x="'+xs[i]+'" y="244" text-anchor="middle" fill="#a6b5c5" font-size="11">财报</text>';
  }).join("");
  const svg='<svg class="growth-svg" viewBox="0 0 670 255" role="img" aria-label="'+
-  esc("从左到右为最近三个完整财年实际净利润同比增速和下一财年预估增速；虚线为预测，门槛30%")+'">'+
+  esc("从左到右为最近四个已披露财年实际EPS同比增长率，红色虚线为自定30%参考线，不包含预测")+'">'+
   grid+'<line x1="65" x2="610" y1="'+y(30)+'" y2="'+y(30)+
   '" stroke="#ff9da6" stroke-width="1.5" stroke-dasharray="5 5"/>'+
-  '<text x="611" y="'+(y(30)-6)+'" text-anchor="end" fill="#ffb9c0" font-size="11">硬标准 30%</text>'+
+  '<text x="611" y="'+(y(30)-6)+'" text-anchor="end" fill="#ffb9c0" font-size="11">EPS参考 30%</text>'+
   lines+dots+'</svg>';
- const rows=g.series.map(a=>'<tr><td>'+esc(a.year)+(a.kind==="预测"?"（预估）":"")+'</td><td class="num">'+
-  (a.profit===null?"—":amount(a.profit,2))+'</td><td class="num">'+
-  (a.rate===null?(a.reason.includes("扭亏为盈")?"扭亏为盈":"—"):amount(a.rate,1)+"%")+'</td><td>'+
-  (a.rate===null?badge(a.reason,"neutral"):
-   badge(a.rate>=GROWTH_RATE?"≥ 30% 达标":"< 30% 未达标",a.rate>=GROWTH_RATE?"pass":"fail"))+
+ const valueAndGrowth=(v,rate,reason,unit)=>
+  '<strong>'+(v===null?"—":amount(v,2)+unit)+'</strong><div class="small muted">'+
+  (rate===null?esc(reason):"同比 "+amount(rate,1)+"%")+'</div>';
+ const rows=g.series.map(a=>'<tr><td>'+esc(a.year)+'</td><td>'+ 
+  valueAndGrowth(a.eps,a.epsRate,a.epsReason,"美元")+
+  (a.epsRate!==null?badge(a.epsRate>=GROWTH_RATE?"≥30%":"<30%",a.epsRate>=GROWTH_RATE?"pass":"fail"):"")+
+  '</td><td>'+valueAndGrowth(a.revenue,a.revenueRate,a.revenueReason,"亿")+
+  '</td><td>'+valueAndGrowth(a.profit,a.profitRate,a.profitReason,"亿")+
   '</td></tr>').join("");
- return '<h3>近四年净利润增长轨迹（含下一财年预测）</h3>'+
-  '<p class="small muted">从左到右按年份排列：前3点是SEC已披露的年度净利润同比增长率，最右是下一财年预测。下表同步列出每年实际净利润（亿美元）；实线＝历史，紫色虚线＝预测；红色虚线＝30%硬标准。</p>'+
+ return '<h3>最近四个已披露财年：EPS、营收与净利润</h3>'+
+  '<p class="small muted">四个点均为真实年度财报，不再加入下一年预测。上图是每股收益EPS同比增速；红色虚线是你设定的30%参考线。下表另外展示营收、净利润和各自同比。</p>'+
   '<div class="growth-chart">'+svg+'</div><div class="growth-table-wrap"><table class="growth-table"><thead>'+
-  '<tr><th>财年</th><th>净利润（亿美元）</th><th>净利润同比</th><th>30%判断</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
-  '<p class="small muted">历史净利润取自SEC 10-K；仅当上年净利润为正且财年连续时计算同比。上年亏损、本年盈利标注“扭亏为盈”，不能当作可比较的增长百分比；预测值不是SEC财报。预测依据：'+esc(g.forecastSource||"尚未填写，请补充公司指引或分析师预期的来源和日期")+'。</p>';
+  '<tr><th>财年</th><th>年度EPS及同比</th><th>营业收入及同比</th><th>净利润及同比</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+  '<p class="small muted">财报来源：SEC年度10-K；收入和净利润单位为亿美元。首个展示年份的同比还需前一年的年报作为基数。EPS或净利润由亏转盈、连续亏损等情况不计为普通正向同比，仍列出实际金额和亏损变化；30%是自定筛选参考值，不是所有行业通用标准。</p>';
 }
 
 function burryModel(s,f){
@@ -348,23 +352,15 @@ function statuses(s,f){
    out.push(keyLine("成长股TTM PE硬标准",pePosition+" 倍",
      "你的新区间：70倍 ≤ 当前TTM PE < 90倍；70以下及90以上均不达标",
      g.peOk===null?"待数据":g.peOk?"已达标":"未达标"));
-   const have=g.series.slice(0,3).filter(x=>x.rate!==null).length;
-   out.push(keyLine("过去3个已披露年度逐年增长",
-     g.pastOk===true?"3/3 年 ≥30%":g.pastOk===false?"有年份低于30%或利润非正":have+"/3 年可计算",
-     "与下一财年预测组成连续四个年度点；每年的净利润同比都需 ≥30%",
+   const have=g.series.filter(x=>x.rate!==null).length;
+   out.push(keyLine("近4个已披露财年EPS逐年增长",
+     g.pastOk===true?"4/4 年 ≥30%":g.pastOk===false?"存在增速低于30%或EPS非正":have+"/4 年可计算",
+     "只看SEC实际年度数据，不使用预测；以每股收益EPS同比作为30%参考口径，收入与净利润变化见上方表格",
      g.pastOk===null?"待数据":g.pastOk?"已达标":"未达标"));
-   out.push(keyLine("下一财年预估净利润增长",
-     g.series[3].rate===null?"未填写":amount(g.series[3].rate,1)+(g.forecastOk?"% ≥ 30%":"% < 30%"),
-     "预计财年："+g.forecastYear+"；"+(g.forecastSource?"依据："+g.forecastSource:"预测来源未填写，请补充")+"；非SEC历史披露",
-     g.forecastOk===null?"待预测":g.forecastOk?"已达标":"未达标"));
    out.push(keyLine("优秀成长股综合硬判断",
-     g.overall===true?"四项均达标":g.overall===false?"至少一项未达标":"缺少完整数据",
-     "市值20—999亿美元＋TTM PE≥70且<90＋3个历史年度每年利润增速≥30%＋下一财年预计≥30%",
+     g.overall===true?"三项均达标":g.overall===false?"至少一项未达标":"缺少完整数据",
+     "市值20—999亿美元＋TTM PE≥70且<90＋最近4个已披露财年EPS同比每年≥30%（用户自定义口径）",
      g.overall===null?"待数据":g.overall?"已达标":"未达标"));
-   if(g.cagr!==null)
-     out.push(keyLine("辅助：过去4年净利润CAGR",amount(g.cagr,1)+"%",
-       "五个连续完整财年净利润的复合增长率（不替代上方逐年硬标准）",
-       g.cagr>=GROWTH_RATE?"已达标":"低于30%"));
    if(f.peTTM!==null){
      out.push(keyLine("当前TTM PE",amount(f.peTTM)+"倍","依据真实已披露最近12个月EPS","已计算"));
    }else if(f.peAnnual!==null){
@@ -479,10 +475,7 @@ function renderDetails(){
  const foreign=r.financialError||r.priceError||"";
  const editor=(label,key,tip,def="")=>'<label class="field"><span>'+esc(label)+'</span><input data-field="'+esc(key)+'" value="'+esc(s.inputs?.[key]??def)+'" type="number" step="any" placeholder="'+esc(tip)+'"></label>';
  const textEditor=(label,key,tip)=>'<label class="field"><span>'+esc(label)+'</span><input data-field="'+esc(key)+'" value="'+esc(s.inputs?.[key]??"")+'" type="text" placeholder="'+esc(tip)+'"></label>';
- const model=s.type==="growth"?
-    editor("下一财年预估净利润增长率（%）","forecastGrowth","例如 35；需要预测依据")+
-    textEditor("预测来源及日期","forecastSource","例如：公司指引／分析师一致预期（日期）"):
-    s.type==="cigar"?editor("个人估算合理价（美元/股）","manualFair","可留空"):
+ const model=s.type==="cigar"?editor("个人估算合理价（美元/股）","manualFair","可留空"):
     s.type==="consumer"?
       editor("机构对目标财年的EPS平均预测（美元/股）","consumerForecastEPS","例如2.81；请查Yahoo Finance Analysis")+
       editor("预计年利润／EPS增长率 g（%）","consumerGrowth","例如5，合理PE＝20倍")+

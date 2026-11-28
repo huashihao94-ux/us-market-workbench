@@ -8,7 +8,7 @@ const CONSUMER_ROE_MIN=20;
 const TYPE={giant:{name:"巨无霸",note:"市值超过5000亿美元，TTM PE分档"},
  growth:{name:"优秀成长股",note:"市值20—999亿 · TTM PE≥70且<90 · 历史EPS逐年≥30%（个人标准）"},
  cigar:{name:"烟蒂股",note:"Burry：现金流与资产折价＋低位技术图"},
- consumer:{name:"消费股",note:"TTM PE倒推隐含g · 与实际EPS增速比较 · ROE＞20%"},
+ consumer:{name:"消费股",note:"PE隐含g vs EPS一年同比／三年CAGR · ROE＞20%"},
  small:{name:"小市值公司",note:"PS与未来3—5年PE估值"}};
 const BASE="https://raw.githubusercontent.com/huashihao94-ux/us-market-workbench/main/";
 const FALLBACK=[
@@ -142,10 +142,25 @@ function consumerModel(s,f){
   {rate:null,reason:"缺少已披露的年度EPS"};
  const actualGrowth=actual.rate;
  const gap=impliedGrowth===null||actualGrowth===null?null:impliedGrowth-actualGrowth;
+ // Three-year EPS CAGR spans four consecutive complete fiscal years.
+ // Reject loss years and gaps rather than turning a turnaround into a % CAGR.
+ const four=epsHistory.slice(0,4);
+ const consecutive=four.length===4&&four.every((row,i)=>{
+  if(i===0)return true;
+  const newer=four[i-1];
+  const days=(Date.parse(newer.end)-Date.parse(row.end))/86400000;
+  return Number(newer.end.slice(0,4))===Number(row.end.slice(0,4))+1&&days>=320&&days<=410;
+ });
+ const epsCagr=consecutive&&four.every(row=>row.amount>0)?
+  (Math.pow(four[0].amount/four[3].amount,1/3)-1)*100:null;
+ const cagrRange=consecutive?four[3].end.slice(0,4)+"—"+four[0].end.slice(0,4):"";
+ const cagrReason=!consecutive?"缺少四个连续完整财年的EPS":
+  "历史EPS有亏损或零值，不能计算三年复合增长率";
+ const cagrGap=impliedGrowth===null||epsCagr===null?null:impliedGrowth-epsCagr;
  const roeOk=f.roe===null?null:f.roe>CONSUMER_ROE_MIN;
- // Only ROE is the consumer hard screen. The two growth figures are context.
+ // Only ROE is the consumer hard screen; all growth comparisons are context.
  return {peTTM:f.peTTM,impliedGrowth,actualGrowth,actualYear:recent?.end.slice(0,4)||"",
-  actualReason:actual.reason,gap,roeOk,overall:roeOk};
+  actualReason:actual.reason,gap,epsCagr,cagrRange,cagrReason,cagrGap,roeOk,overall:roeOk};
 }
 function growthPlot(s,f){
  if(s.type!=="growth")return "";
@@ -477,6 +492,17 @@ function statuses(s,f){
       "隐含增长率"+(Math.abs(c.gap)<0.005?"与实际增长率相当":c.gap>0?"高于":"低于")+
       "最近财年实际增长率，差值"+amount(Math.abs(c.gap),2)+"个百分点；不同时间口径，仅作直观对比",
      c.gap===null?"不可比较":Math.abs(c.gap)<0.005?"基本相等":c.gap>0?"隐含较高":"隐含较低"));
+   out.push(keyLine("过去三年实际EPS复合增长率（CAGR）",
+     c.epsCagr===null?c.cagrReason:amount(c.epsCagr,2)+"%/年",
+     (c.cagrRange?c.cagrRange+"财年；":"")+"用最近四个连续完整财年的首尾EPS计算，跨三个年度间隔；含亏损或缺失年份时不强算",
+     c.epsCagr===null?"不可计算":"真实历史"));
+   const cagrSign=c.cagrGap===null?"":Math.abs(c.cagrGap)<0.005?"=":c.cagrGap>0?">":"<";
+   out.push(keyLine("隐含g vs 过去三年实际EPS年均增速",
+     c.cagrGap===null?"不可比较":amount(c.impliedGrowth,2)+"% "+cagrSign+" "+amount(c.epsCagr,2)+"%",
+     c.cagrGap===null?"需要有效TTM PE和四个连续正盈利财年的年度EPS":
+      "隐含增长率"+(Math.abs(c.cagrGap)<0.005?"与过去三年年均实际增速相当":c.cagrGap>0?"高于":"低于")+
+      "过去三年实际EPS复合增速，差值"+amount(Math.abs(c.cagrGap),2)+"个百分点；历史不代表未来",
+     c.cagrGap===null?"不可比较":Math.abs(c.cagrGap)<0.005?"基本相等":c.cagrGap>0?"隐含较高":"隐含较低"));
    out.push(keyLine("消费股：ROE硬标准",
      f.roe===null?"年报数据缺失":amount(f.roe,2)+(f.roe>20?" > ":f.roe===20?" = ":" < ")+"20%",
      "你笔记里的标准：ROE必须严格大于20%；按最近完整财年净利润÷平均股东权益",

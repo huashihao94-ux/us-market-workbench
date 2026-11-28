@@ -109,19 +109,38 @@ const missing=make("TEST","cigar",{low52:8}, {},50,null,11);
 assert.equal(missing.burry.evToEbitda,null);
 assert.equal(missing.burry.ncavRatio,null);
 assert.ok(missing.burryHtml.includes("暂无足够"));
-const ko={roe:23};
-const consumerInputs={consumerForecastEPS:2.81,consumerGrowth:5,consumerEstimateSource:"Yahoo Analysis 示例"};
-const sample=make("KO","consumer",ko,consumerInputs,260,25,60.23).consumer;
-assert.ok(Math.abs(sample.forwardPe-60.23/2.81)<1e-8);
-assert.equal(sample.targetPe,20);
-assert.ok(Math.abs(sample.referencePrice-56.2)<1e-8);
-assert.equal(sample.peOk,false);
-assert.equal(sample.roeOk,true);
-assert.equal(sample.overall,false);
-assert.equal(make("KO","consumer",{roe:20},consumerInputs,260,25,50).consumer.roeOk,false,"ROE must be strictly >20%");
-assert.equal(make("KO","consumer",{roe:20.01},consumerInputs,260,25,50).consumer.overall,true);
-assert.equal(make("KO","consumer",{roe:30},consumerInputs,260,25,56.2).consumer.peOk,true,"forward PE equality passes");
-assert.equal(make("KO","consumer",{roe:30},{consumerGrowth:5},260,25,50).consumer.overall,null,"missing analyst EPS cannot pass");
-assert.equal(make("KO","consumer",{roe:30},{consumerForecastEPS:2.81},260,25,50).consumer.overall,null,"missing growth g cannot pass");
-assert.equal(make("KO","consumer",{roe:30},{consumerForecastEPS:-1,consumerGrowth:5},260,25,50).consumer.peOk,false,"non-positive earnings do not pass");
-console.log("PASS: four actual EPS growth years, Uber profit/revenue context, legacy forecasts ignored, Burry, consumer PE=10+2g and ROE>20%");
+const ko={roe:23,annualHistory:{eps:[
+ {end:"2025-12-31",value:2},{end:"2024-12-31",value:1.6}
+]}};
+const legacyInputs={consumerForecastEPS:2.81,consumerGrowth:5,consumerEstimateSource:"旧预测不应再使用"};
+const sample=make("KO","consumer",ko,legacyInputs,260,25,60.23);
+assert.equal(sample.consumer.impliedGrowth,7.5,"TTM PE=25 implies g=(25-10)/2=7.5%");
+assert.ok(Math.abs(sample.consumer.actualGrowth-25)<1e-8,"actual growth is latest FY EPS YoY");
+assert.ok(Math.abs(sample.consumer.gap+17.5)<1e-8,"implied growth is 17.5pp below actual");
+assert.equal(sample.consumer.actualYear,"2025");
+assert.match(sample.growthStatus,/7\.50% &lt; 25\.00%/);
+assert.match(sample.growthStatus,/隐含增长率低于最近财年实际增长率/);
+assert.equal(sample.consumer.roeOk,true);
+assert.equal(sample.consumer.overall,true,"ROE is the only consumer hard threshold");
+const high=make("KO","consumer",ko,{},260,70,60.23);
+assert.equal(high.consumer.impliedGrowth,30);
+assert.match(high.growthStatus,/30\.00% &gt; 25\.00%/);
+const equal=make("KO","consumer",ko,{},260,60,60.23);
+assert.match(equal.growthStatus,/25\.00% = 25\.00%/);
+assert.equal(make("KO","consumer",{...ko,roe:20},{},260,25,50).consumer.roeOk,false,
+ "ROE must be strictly >20%");
+assert.equal(make("KO","consumer",{...ko,roe:20.01},{},260,25,50).consumer.overall,true);
+assert.equal(make("KO","consumer",{...ko,roe:null},{},260,25,50).consumer.overall,null);
+assert.equal(make("KO","consumer",ko,{},260,null,50).consumer.impliedGrowth,null,
+ "no valid TTM PE must not invent implied growth");
+const turnaround=make("KO","consumer",{roe:23,annualHistory:{eps:[
+ {end:"2025-12-31",value:2},{end:"2024-12-31",value:-1}
+]}},{},260,25,60.23);
+assert.equal(turnaround.consumer.actualGrowth,null,"loss to profit is not a normal growth percentage");
+assert.match(turnaround.growthStatus,/扭亏为盈/);
+assert.match(turnaround.growthStatus,/不可比较/);
+assert.ok(!src.includes("分析师年度EPS平均预测"),"consumer analyst estimate UI should be removed");
+assert.ok(!src.includes("消费股：前瞻PE"),"consumer forward PE comparison should be removed");
+assert.ok(!src.includes("前瞻PE ≤ 合理PE"),"consumer fair PE comparison should be removed");
+assert.ok(!src.includes('editor("预计年利润／EPS增长率 g'),"consumer growth manual editor should be removed");
+console.log("PASS: actual EPS history and growth, Burry, consumer PE-implied g vs real EPS YoY, ROE>20% only");

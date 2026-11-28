@@ -15,7 +15,7 @@ const make=new Function("ticker","type","recordData","inputs","cap","pe","price"
  models+`
   stocks.set(ticker,recordData);
   const s={ticker,type,inputs};
-  const f={r:recordData,cap,peTTM:pe,p:price,roe:recordData.roe??null,
+  const f={r:recordData,cap,peTTM:pe,p:price,roe:recordData.roe??null,eps:recordData.ttmEPS??null,
    revenue:recordData.revenue??null,income:recordData.netIncome??null,
    ps:cap>0&&recordData.revenue>0?cap/recordData.revenue:null};
   return {growth:growthModel(s,f),growthHtml:growthPlot(s,f),growthStatus:statuses(s,f),burry:burryModel(s,f),burryHtml:burryPlot(s,f),consumer:consumerModel(s,f),
@@ -67,7 +67,7 @@ assert.ok(u.growthHtml.includes("年度EPS及同比"));
 assert.ok(!u.growthHtml.includes("2026"),"no automatic future-year forecast");
 assert.equal(u.growth.epsCagr,null,"Uber historic EPS crosses losses: no misleading EPS CAGR");
 assert.ok(u.growth.revenueCagr>0,"Uber 3-year actual revenue CAGR should be visible");
-assert.match(u.growthStatus,/不适用／数据不足/);
+assert.match(u.growthStatus,/历史EPS含亏损，CAGR不适用/);
 assert.match(u.growthStatus,/仅合并原来的市值/);
 assert.deepEqual(u.historyAfterPartialRefresh.netIncome,uber.annualHistory.netIncome,
  "empty SEC refresh must retain full yearly history");
@@ -80,7 +80,7 @@ const navitas=require(path.resolve(__dirname,"..","fundamentals.json")).stocks.N
 const nv=make("NVTS","growth",navitas,{},navitas.marketCap,null,navitas.price);
 assert.equal(nv.growth.epsCagr,null,"NVTS annual losses must not be compounded");
 assert.match(nv.growthStatus,/现金流为负/);
-assert.match(nv.growthStatus,/TTM PE待财报/);
+assert.match(nv.growthStatus,/TTM EPS非正，PE不适用/);
 assert.ok(!src.includes("未来平均每年利润增速 g"),"obsolete growth g comparison must be removed");
 assert.ok(!src.includes("未来长期预估年利润增长率 g"),"obsolete growth g editor must be removed");
 assert.ok(!src.includes('editor("下一财年预估净利润增长率'),"remove growth-specific forecast editor");

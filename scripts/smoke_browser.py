@@ -91,6 +91,19 @@ def us_test(page):
                 assert "2026" not in actual,(ticker,"no future-year forecast",actual)
         results.append({"ticker":ticker,"price":price,"cap":cap,"ttm_eps":eps,"roe":roe,"label":label[:135]})
     print("US_STOCKS "+json.dumps(results,ensure_ascii=False),flush=True)
+    # Chinese-brand lookup should work without users knowing the COST ticker;
+    # its years of SEC reports must come from the scheduled cache.
+    page.locator("#query").fill("开市客")
+    page.locator("#suggestions button").filter(has_text="COST").first.wait_for(timeout=15000)
+    page.locator("#suggestions button").filter(has_text="COST").first.click()
+    assert "COST" in page.locator("#selection").inner_text()
+    page.locator("#newType").select_option("consumer")
+    page.locator("#addStock").click()
+    assert "COST" in page.locator("#detail h2").inner_text()
+    assert metric(page,"市值") not in (None,"—")
+    assert metric(page,"ROE（年报口径）") not in (None,"—")
+    assert metric(page,"年度净利润") not in (None,"—")
+    print("COSTCO_CHINESE_SEARCH AND SEC METRICS OK",flush=True)
     # Consumer screens use the user's handwritten forward-EPS and ROE>20 rules.
     # Burry's cigar method must expose valuation inputs even before its first
     # one-year daily price-history cache has been regenerated.

@@ -6,7 +6,7 @@ const GROWTH_MIN_CAP=20, GROWTH_MAX_CAP=999, GROWTH_RATE=30;
 const GROWTH_PE_MIN=70, GROWTH_PE_MAX=90;
 const CONSUMER_ROE_MIN=20;
 const TYPE={giant:{name:"巨无霸",note:"市值超过5000亿美元，TTM PE分档"},
- growth:{name:"优秀成长股",note:"市值20—999亿 · PE≥70且<90 · 历史EPS增速参考≥30%"},
+ growth:{name:"优秀成长股",note:"市值20—999亿 · TTM PE≥70且<90 · 历史EPS逐年≥30%（个人标准）"},
  cigar:{name:"烟蒂股",note:"Burry：现金流与资产折价＋低位技术图"},
  consumer:{name:"消费股",note:"预测PE ≤ 10＋2g · ROE＞20%"},
  small:{name:"小市值公司",note:"PS与未来3—5年PE估值"}};
@@ -98,6 +98,12 @@ function fiscalChange(rows,year){
  if(curr.amount<=0)return {amount:curr.amount,rate:null,reason:"由盈转亏／利润归零"};
  return {amount:curr.amount,rate:(curr.amount/prev.amount-1)*100,reason:""};
 }
+// Four disclosed fiscal years contain three compounding intervals. Do not
+// compute a misleading EPS CAGR across losses or an incomplete annual series.
+function threeYearCagr(series,key){
+ if(series.length!==4||series.some(x=>!(x[key]>0)))return null;
+ return (Math.pow(series[3][key]/series[0][key],1/3)-1)*100;
+}
 function growthModel(s,f){
  const histories={eps:annualRows(s,"eps"),revenue:annualRows(s,"revenue"),netIncome:annualRows(s,"netIncome")};
  const dates=Object.values(histories).flat().map(x=>x.end).sort();
@@ -122,7 +128,8 @@ function growthModel(s,f){
  const peOk=f.peTTM===null?null:f.peTTM>=GROWTH_PE_MIN&&f.peTTM<GROWTH_PE_MAX;
  const overall=[capOk,peOk,pastOk].includes(false)?false:
   [capOk,peOk,pastOk].every(x=>x===true)?true:null;
- return {annual:histories.netIncome,series,year,capOk,peOk,pastOk,overall};
+ return {annual:histories.netIncome,series,year,capOk,peOk,pastOk,overall,
+  epsCagr:threeYearCagr(series,"eps"),revenueCagr:threeYearCagr(series,"revenue")};
 }
 function consumerModel(s,f){
  const analystEPS=value(s.inputs?.consumerForecastEPS);
@@ -326,6 +333,10 @@ function keyLine(label,left,right,tag){
 function period(r,key){
  const m=r?.financialMeta?.fields?.[key];return m?.end||"日期未知";
 }
+function growthSection(title,description,rows){
+ return '<section class="growth-eval-group"><div class="growth-eval-head"><h4>'+esc(title)+'</h4>'+ 
+  '<p class="small muted">'+esc(description)+'</p></div><div class="growth-eval-items">'+rows.join("")+'</div></section>';
+}
 function statuses(s,f){
  const v=s.inputs||{},out=[];
  if(s.type==="giant"){
@@ -341,31 +352,64 @@ function statuses(s,f){
   }
  }else if(s.type==="growth"){
    const g=growthModel(s,f);
-   out.push(keyLine("市值硬标准",
-     f.cap===null?"待查询":amount(f.cap,1)+(g.capOk?" 在 ":" 不在 ")+GROWTH_MIN_CAP+"—"+GROWTH_MAX_CAP+" 亿美元",
-     "适用于几十亿至几百亿美元的成长型公司；大型公司仍可观察但不通过此项",
+   const growthRows=[],qualityRows=[],valuationRows=[];
+   const have=g.series.filter(x=>x.rate!==null).length;
+   growthRows.push(keyLine("最近4个财年的EPS同比：逐年≥30%",
+     g.pastOk===true?"4/4 年 ≥30%":g.pastOk===false?"有年份低于30%，或EPS非正":have+"/4 年可计算",
+     "你的原定硬标准：四个已披露财年的EPS同比每年都至少30%，缺少上一年基数不算自动达标；无当年/明年预测",
+     g.pastOk===null?"待数据":g.pastOk?"已达标":"未达标"));
+   growthRows.push(keyLine("过去3年EPS复合年增长率（CAGR）",
+     g.epsCagr===null?"不适用／数据不足":amount(g.epsCagr,1)+"%/年",
+     "四个真实财年首尾计算，跨3个年度间隔；历年EPS都须为正。辅助看整体趋势，不能代替逐年≥30%的硬标准",
+     g.epsCagr===null?"不强算":"辅助参考"));
+   growthRows.push(keyLine("过去3年营收复合年增长率（CAGR）",
+     g.revenueCagr===null?"数据不足":amount(g.revenueCagr,1)+"%/年",
+     "只取最近四个已披露财年的实际营业收入。检验盈利增长是否也有业务增长支撑；不另外设置30%硬门槛",
+     g.revenueCagr===null?"待财报":"辅助参考"));
+
+   const fcf=value(f.r?.fcf),fcfMargin=fcf!==null&&f.revenue>0?fcf/f.revenue*100:null;
+   qualityRows.push(keyLine("ROE：净资产收益率",
+     f.roe===null?"待财报":amount(f.roe,1)+"%",
+     "最近完整财年净利润÷平均股东权益。观察资本使用效率；成长股暂不设ROE硬门槛，与消费股的ROE>20%分开",
+     f.roe===null?"待数据":"质量参考"));
+   qualityRows.push(keyLine("自由现金流（FCF）",
+     fcf===null?"待财报":amount(fcf,2)+" 亿美元",
+     "经营活动现金流减资本开支；盈利增长能否转化为现金是重要核验，单年负值须结合投资周期解释",
+     fcf===null?"待数据":fcf>0?"现金流为正":"现金流为负"));
+   qualityRows.push(keyLine("自由现金流率（FCF÷营收）",
+     fcfMargin===null?"无法计算":amount(fcfMargin,1)+"%",
+     "最近完整年度的自由现金流÷营业收入；观察现金创造能力，不设跨行业统一及格线",
+     fcfMargin===null?"待数据":"质量参考"));
+   qualityRows.push(keyLine("年度净利润",
+     f.income===null?"待财报":amount(f.income,2)+" 亿美元",
+     "和上方历年EPS、营收一起核对；扭亏为盈不是普通的正百分比同比增长",
+     f.income===null?"待数据":f.income>0?"已有盈利":"仍在亏损"));
+
+   const capPosition=f.cap===null?"待查询":f.cap<GROWTH_MIN_CAP?
+     amount(f.cap,1)+" < 20 亿美元":f.cap>GROWTH_MAX_CAP?
+     amount(f.cap,1)+" > 999 亿美元":"20 ≤ "+amount(f.cap,1)+" ≤ 999 亿美元";
+   valuationRows.push(keyLine("市值：你的20—999亿美元区间",capPosition,
+     "你的原定硬标准；市值大小本身并不等于企业成长质量",
      g.capOk===null?"待数据":g.capOk?"已达标":"未达标"));
    const pePosition=f.peTTM===null?"TTM PE待财报":
      f.peTTM<GROWTH_PE_MIN?amount(f.peTTM)+" < 70":
      f.peTTM<GROWTH_PE_MAX?"70 ≤ "+amount(f.peTTM)+" < 90":
      amount(f.peTTM)+" ≥ 90";
-   out.push(keyLine("成长股TTM PE硬标准",pePosition+" 倍",
-     "你的新区间：70倍 ≤ 当前TTM PE < 90倍；70以下及90以上均不达标",
+   valuationRows.push(keyLine("TTM PE：你的70—90倍区间",pePosition+(f.peTTM===null?"":" 倍"),
+     "你的原定硬标准：70 ≤ 当前TTM PE < 90；高PE不自动代表优质，必须配合成长性和现金流",
      g.peOk===null?"待数据":g.peOk?"已达标":"未达标"));
-   const have=g.series.filter(x=>x.rate!==null).length;
-   out.push(keyLine("近4个已披露财年EPS逐年增长",
-     g.pastOk===true?"4/4 年 ≥30%":g.pastOk===false?"存在增速低于30%或EPS非正":have+"/4 年可计算",
-     "只看SEC实际年度数据，不使用预测；以每股收益EPS同比作为30%参考口径，收入与净利润变化见上方表格",
-     g.pastOk===null?"待数据":g.pastOk?"已达标":"未达标"));
-   out.push(keyLine("优秀成长股综合硬判断",
+   if(f.ps!==null)valuationRows.push(keyLine("当前市销率（PS）",
+     amount(f.ps,2)+" 倍","当前市值÷最近完整年度营业收入；辅助比较，不设统一硬阈值","估值参考"));
+   if(f.peTTM===null&&f.peAnnual!==null)
+     valuationRows.push(keyLine("仅供参考：年度PE",amount(f.peAnnual,2)+" 倍",
+       "非TTM PE，不能拿年度值代替你的70—90倍硬标准","不同口径"));
+   valuationRows.push(keyLine("按你原标准：三项综合硬判断",
      g.overall===true?"三项均达标":g.overall===false?"至少一项未达标":"缺少完整数据",
-     "市值20—999亿美元＋TTM PE≥70且<90＋最近4个已披露财年EPS同比每年≥30%（用户自定义口径）",
+     "仅合并原来的市值20—999亿美元、TTM PE 70至90倍、4个实际财年EPS同比逐年≥30%；CAGR、ROE、FCF均为辅助观察",
      g.overall===null?"待数据":g.overall?"已达标":"未达标"));
-   if(f.peTTM!==null){
-     out.push(keyLine("当前TTM PE",amount(f.peTTM)+"倍","依据真实已披露最近12个月EPS","已计算"));
-   }else if(f.peAnnual!==null){
-     out.push(keyLine("当前年度PE",amount(f.peAnnual)+"倍","不是TTM PE；无法与最近12个月EPS混用","仅年度口径"));
-   }else out.push(keyLine("当前PE","无法计算","需要正的EPS和可用股价","待财报"));
+   return growthSection("① 成长性：增长是否持续","原标准是历年EPS逐年≥30%；两个CAGR仅帮你看趋势",growthRows)+
+    growthSection("② 增长质量：赚的钱是否扎实","ROE、自由现金流及净利润辅助核对，不擅自新增硬门槛",qualityRows)+
+    growthSection("③ 估值位置：现在贵不贵","按你个人的市值、PE区间判断；PS辅助对照",valuationRows);
  }else if(s.type==="cigar"){
    const b=burryModel(s,f);
    out.push(keyLine("Burry：企业价值 EV / EBITDA",

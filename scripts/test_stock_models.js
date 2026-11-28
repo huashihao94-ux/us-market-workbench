@@ -120,8 +120,36 @@ assert.ok(Math.abs(sample.consumer.gap+17.5)<1e-8,"implied growth is 17.5pp belo
 assert.equal(sample.consumer.actualYear,"2025");
 assert.match(sample.growthStatus,/7\.50% &lt; 25\.00%/);
 assert.match(sample.growthStatus,/隐含增长率低于最近财年实际增长率/);
+assert.equal(sample.consumer.epsCagr,null,"two years are insufficient for 3-year EPS CAGR");
+assert.match(sample.growthStatus,/缺少四个连续完整财年的EPS/);
 assert.equal(sample.consumer.roeOk,true);
 assert.equal(sample.consumer.overall,true,"ROE is the only consumer hard threshold");
+const fourYearEPS={roe:23,annualHistory:{eps:[
+ {end:"2025-12-31",value:2},{end:"2024-12-31",value:1.6},
+ {end:"2023-12-31",value:1.4},{end:"2022-12-31",value:1}
+]}};
+const threeYear=make("KO","consumer",fourYearEPS,{},260,70,60.23);
+const expectedCagr=(Math.pow(2,1/3)-1)*100;
+assert.ok(Math.abs(threeYear.consumer.epsCagr-expectedCagr)<1e-8,
+ "three-year CAGR compounds four consecutive reported EPS values");
+assert.equal(threeYear.consumer.cagrRange,"2022—2025");
+assert.ok(Math.abs(threeYear.consumer.cagrGap-(30-expectedCagr))<1e-8);
+assert.match(threeYear.growthStatus,/过去三年实际EPS复合增长率/);
+assert.match(threeYear.growthStatus,/30\.00% &gt; 25\.99%/);
+assert.match(threeYear.growthStatus,/过去三年实际EPS年均增速/);
+const cagrEqual=make("KO","consumer",fourYearEPS,{},260,10+2*expectedCagr,60.23);
+assert.match(cagrEqual.growthStatus,/基本相等/);
+const cagrLoss=make("KO","consumer",{...fourYearEPS,annualHistory:{eps:[
+ {end:"2025-12-31",value:2},{end:"2024-12-31",value:-1},
+ {end:"2023-12-31",value:1.4},{end:"2022-12-31",value:1}
+]}},{},260,70,60.23);
+assert.equal(cagrLoss.consumer.epsCagr,null,"loss-making year cannot be compounded");
+assert.match(cagrLoss.growthStatus,/历史EPS有亏损或零值/);
+const fiscalGap=make("KO","consumer",{roe:23,annualHistory:{eps:[
+ {end:"2025-12-31",value:2},{end:"2024-12-31",value:1.6},
+ {end:"2022-12-31",value:1.4},{end:"2021-12-31",value:1}
+]}},{},260,70,60.23);
+assert.equal(fiscalGap.consumer.epsCagr,null,"missing fiscal years cannot be compounded");
 const high=make("KO","consumer",ko,{},260,70,60.23);
 assert.equal(high.consumer.impliedGrowth,30);
 assert.match(high.growthStatus,/30\.00% &gt; 25\.00%/);
@@ -143,4 +171,4 @@ assert.ok(!src.includes("分析师年度EPS平均预测"),"consumer analyst esti
 assert.ok(!src.includes("消费股：前瞻PE"),"consumer forward PE comparison should be removed");
 assert.ok(!src.includes("前瞻PE ≤ 合理PE"),"consumer fair PE comparison should be removed");
 assert.ok(!src.includes('editor("预计年利润／EPS增长率 g'),"consumer growth manual editor should be removed");
-console.log("PASS: actual EPS history and growth, Burry, consumer PE-implied g vs real EPS YoY, ROE>20% only");
+console.log("PASS: annual EPS, Burry, consumer implied g vs annual EPS YoY/3-year CAGR, ROE>20% only");
